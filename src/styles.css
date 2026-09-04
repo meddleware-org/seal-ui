@@ -1,0 +1,137 @@
+/* Sealed Storage app styles. Colours come from @meddleware/design-tokens. */
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: var(--bg, #14100f);
+  color: var(--text, #f3ece9);
+}
+
+#app {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 4rem;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.badge {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #c0503f) 25%, transparent);
+}
+
+.notice {
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+}
+.notice--warn { background: color-mix(in srgb, #d29922 15%, transparent); }
+.notice--error { background: color-mix(in srgb, #f85149 18%, transparent); }
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin: 1rem 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+.tabs button {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  opacity: 0.7;
+  border-bottom: 2px solid transparent;
+}
+.tabs button.active {
+  opacity: 1;
+  border-bottom-color: var(--accent, #c0503f);
+}
+
+.card {
+  background: var(--surface, #1e1917);
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  margin: 0.75rem 0;
+}
+
+label.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0.6rem 0;
+  font-size: 0.9rem;
+}
+label.field.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+input[type='text'],
+input[type='datetime-local'],
+textarea,
+select {
+  background: var(--bg, #14100f);
+  color: inherit;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+textarea { min-height: 6rem; resize: vertical; font-family: ui-monospace, monospace; font-size: 0.8rem; }
+
+button.primary {
+  background: var(--accent, #c0503f);
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.55rem 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.primary:disabled { opacity: 0.5; cursor: default; }
+
+button.link {
+  background: transparent;
+  border: 0;
+  color: var(--accent, #c0503f);
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+
+pre.manifest {
+  background: var(--bg, #14100f);
+  border-radius: 8px;
+  padding: 0.7rem;
+  overflow-x: auto;
+  font-size: 0.75rem;
+}
+
+.muted { color: var(--muted, #a89b96); font-size: 0.85rem; }
+.status { font-size: 0.85rem; margin-top: 0.5rem; }

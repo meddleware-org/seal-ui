@@ -1,0 +1,193 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  IMAGE: seal-ui
+
+jobs:
+  # ── App source: @meddleware/seal-ui → npmjs ──────────────────────────────
+  # Authentication uses npm OIDC trusted publishing (no long-lived NPM_TOKEN
+  # secret): the id-token below is exchanged automatically by npm, and build
+  # provenance is generated as part of the publish. The trusted-publisher
+  # relationship lives server-side on npmjs.com, so the workflow cannot probe it
+  # directly — publishing is therefore an explicit opt-in via the repository
+  # variable NPM_PUBLISH. Unset → the job warns and skips; set → any failure
+  # (e.g. a missing/invalid trusted-publisher relationship) is a real error and
+  # fails the job.
+  publish-npm:
+    name: npmjs (@meddleware/seal-ui)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # required for OIDC trusted publishing
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-node@v6.5.0
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted publishing (OIDC) requires npm >= 11.5.1. Node 24 ships an older
+      # npm, so upgrade before publishing.
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Publish to npmjs (OIDC trusted publishing, idempotent)
+        env:
+          NPM_PUBLISH: ${{ vars.NPM_PUBLISH }}
+        run: |
+          # Opt-in gate: skip (warning, not error) when npm publishing has not been
+          # enabled for this repo. This deliberately does not swallow failures once
+          # publishing IS enabled — an invalid or absent trusted-publisher
+          # relationship will surface from `npm publish` below.
+          if [ "${NPM_PUBLISH}" != "true" ]; then
+            echo "::warning::npm publishing not configured — set repository variable NPM_PUBLISH=true and configure an npmjs trusted publisher to enable it. Skipping npm publication."
+            exit 0
+          fi
+
+          VERSION=$(node -p "require('./package.json').version")
+          HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://registry.npmjs.org/@meddleware%2fseal-ui/${VERSION}")
+          if [ "$HTTP" = "200" ]; then
+            echo "::notice::v${VERSION} already published to npmjs — skipping."
+          else
+            # Trusted publishing generates provenance automatically — no --provenance flag needed.
+            npm publish
+          fi
+
+  # ── App: Docker image → quay.io + Docker Hub ────────────────────────────────
+  publish-docker-public:
+    name: Docker (quay.io + Docker Hub)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: docker/setup-qemu-action@v4.3.0
+      - uses: docker/setup-buildx-action@v4.3.0
+
+      - name: Log in to quay.io
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Compute tags and labels
+        id: meta
+        uses: docker/metadata-action@v6.2.0
+        with:
+          images: |
+            quay.io/${{ vars.QUAY_NAMESPACE }}/${{ env.IMAGE }}
+            docker.io/${{ vars.DOCKERHUB_NAMESPACE }}/${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+          flavor: |
+            latest=auto
+
+      - name: Build and push (multi-arch, SBOM + provenance)
+        id: build
+        uses: docker/build-push-action@v7.3.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Sign images (keyless)
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          QUAY_NS: ${{ vars.QUAY_NAMESPACE }}
+          DOCKERHUB_NS: ${{ vars.DOCKERHUB_NAMESPACE }}
+        run: |
+          cosign sign --yes "quay.io/${QUAY_NS}/${IMAGE}@${DIGEST}"
+          cosign sign --yes "docker.io/${DOCKERHUB_NS}/${IMAGE}@${DIGEST}"
+
+      - name: Attest build provenance (quay.io)
+        uses: actions/attest-build-provenance@v4.2.2
+        with:
+          subject-name: quay.io/${{ vars.QUAY_NAMESPACE }}/${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest build provenance (Docker Hub)
+        uses: actions/attest-build-provenance@v4.2.2
+        with:
+          subject-name: docker.io/${{ vars.DOCKERHUB_NAMESPACE }}/${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Summary
+        run: echo "Published & signed @ ${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+
+  publish-docker-private:
+    name: Docker (self-hosted registry)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: docker/setup-qemu-action@v4.3.0
+      - uses: docker/setup-buildx-action@v4.3.0
+
+      - name: Log in to self-hosted registry
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ${{ vars.PRIVATE_REGISTRY }}
+          username: ${{ secrets.PRIVATE_REGISTRY_USERNAME }}
+          password: ${{ secrets.PRIVATE_REGISTRY_TOKEN }}
+
+      - name: Compute tags
+        id: meta
+        uses: docker/metadata-action@v6.2.0
+        with:
+          images: ${{ vars.PRIVATE_REGISTRY }}/${{ vars.PRIVATE_NAMESPACE }}/${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+          flavor: |
+            latest=auto
+
+      - name: Build and push
+        uses: docker/build-push-action@v7.3.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
