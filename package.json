@@ -28,6 +28,7 @@
   "dependencies": {
     "@meddleware/design-tokens": "^0.1.2",
     "@meddleware/seal-client": "^0.0.1",
+    "@meddleware/ui": "^0.1.6",
     "@mysten/seal": "^1.4.7",
     "@mysten/sui": "^2.28.0",
     "@mysten/wallet-standard": "^0.20.0",

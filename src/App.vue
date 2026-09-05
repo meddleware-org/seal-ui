@@ -7,11 +7,15 @@ import {
   type SealPolicyProvider,
   type SealedContentPointer,
 } from '@meddleware/seal-client'
+import { AppHeader, AppFooter, ColorModeControl, useColorMode } from '@meddleware/ui'
 import { useWallet } from './wallet.js'
 import { registry, getSealController } from './seal.js'
 import { storeBlob, readBlob } from './walrus.js'
 import { discoverSealedContent } from './sealed-content.js'
 import { NETWORK, MAINNET_PENDING, SEAL_CONFIGURED, SEAL_PACKAGE_ID } from './config.js'
+
+const isEmbedded = new URLSearchParams(window.location.search).has('embedded')
+const { mode, set } = useColorMode('dark')
 
 const { wallets, account, connect, disconnect, signPersonalMessage, signAndExecute } = useWallet()
 
@@ -264,186 +268,229 @@ const shortAddr = computed(() => {
 </script>
 
 <template>
-  <header class="topbar">
-    <div>
-      <h1>🔒 Sealed Storage</h1>
+  <div class="app" :class="{ 'app--embedded': isEmbedded }">
+    <AppHeader v-if="!isEmbedded" variant="dark">
+      <template #brand>
+        <span>🔒 Sealed Storage</span>
+      </template>
+      <template #actions>
+        <span class="badge">{{ NETWORK }}</span>
+        <ColorModeControl :model-value="mode" @update:model-value="set" />
+      </template>
+    </AppHeader>
+
+    <div class="page">
       <p class="muted">Client-side encrypted, access-gated storage on Walrus + Sui.</p>
-    </div>
-    <span class="badge">{{ NETWORK }}</span>
-  </header>
 
-  <div v-if="MAINNET_PENDING" class="notice notice--warn">
-    Mainnet support is pending — Seal committee mode is currently testnet-only. Switch to testnet to
-    seal content.
-  </div>
-  <div v-else-if="!SEAL_CONFIGURED" class="notice notice--warn">
-    This deployment has no Seal policy package or key-server committee configured
-    (<code>VITE_SEAL_PACKAGE_ID_*</code> / <code>VITE_SEAL_SERVER_OBJECT_IDS_*</code>).
-  </div>
+      <div v-if="MAINNET_PENDING" class="notice notice--warn">
+        Mainnet support is pending — Seal committee mode is currently testnet-only. Switch to testnet to
+        seal content.
+      </div>
+      <div v-else-if="!SEAL_CONFIGURED" class="notice notice--warn">
+        This deployment has no Seal policy package or key-server committee configured
+        (<code>VITE_SEAL_PACKAGE_ID_*</code> / <code>VITE_SEAL_SERVER_OBJECT_IDS_*</code>).
+      </div>
 
-  <section class="card" style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
-    <template v-if="account">
-      <span class="muted">Connected: {{ shortAddr }}</span>
-      <button class="link" @click="disconnect">Disconnect</button>
-    </template>
-    <template v-else>
-      <span class="muted">Wallet needed only to decrypt.</span>
-      <span>
-        <button
-          v-for="w in wallets"
-          :key="w.name"
-          class="primary"
-          style="margin-left:0.4rem"
-          @click="connect(w)"
-        >
-          Connect {{ w.name }}
+      <section class="card" style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
+        <template v-if="account">
+          <span class="muted">Connected: {{ shortAddr }}</span>
+          <button class="link" @click="disconnect">Disconnect</button>
+        </template>
+        <template v-else>
+          <span class="muted">Wallet needed only to decrypt.</span>
+          <span>
+            <button
+              v-for="w in wallets"
+              :key="w.name"
+              class="primary"
+              style="margin-left:0.4rem"
+              @click="connect(w)"
+            >
+              Connect {{ w.name }}
+            </button>
+            <span v-if="!wallets.length" class="muted">No Sui wallet detected.</span>
+          </span>
+        </template>
+      </section>
+
+      <nav class="tabs">
+        <button :class="{ active: tab === 'encrypt' }" @click="tab = 'encrypt'">Encrypt</button>
+        <button :class="{ active: tab === 'decrypt' }" @click="tab = 'decrypt'">Decrypt</button>
+        <button :class="{ active: tab === 'unlock' }" @click="tab = 'unlock'">Unlock</button>
+      </nav>
+
+      <div v-if="errorMsg" class="notice notice--error">{{ errorMsg }}</div>
+
+      <!-- Encrypt -->
+      <section v-show="tab === 'encrypt'" class="card">
+        <label class="field">
+          <span>Policy</span>
+          <select v-model="encType" :disabled="disabled">
+            <option v-for="p in providers" :key="p.type" :value="p.type">
+              {{ p.describe().label }}
+            </option>
+          </select>
+        </label>
+        <p v-if="encProvider" class="muted">{{ encProvider.describe().help }}</p>
+
+        <template v-if="encProvider">
+          <label
+            v-for="f in encProvider.describe().encryptFields"
+            :key="f.name"
+            class="field"
+            :class="{ checkbox: f.kind === 'boolean' }"
+          >
+            <span>{{ f.label }}<template v-if="f.required"> *</template></span>
+            <input v-if="f.kind === 'datetime'" type="datetime-local" v-model="encValues[f.name]" />
+            <input v-else-if="f.kind === 'boolean'" type="checkbox" v-model="encValues[f.name]" />
+            <input v-else type="text" v-model="encValues[f.name]" :placeholder="f.help" />
+          </label>
+        </template>
+
+        <label class="field">
+          <span>Label (optional)</span>
+          <input type="text" v-model="encLabel" placeholder="A name to recognise this later" />
+        </label>
+
+        <label class="field">
+          <span>File</span>
+          <input type="file" @change="onEncFile" />
+        </label>
+
+        <button class="primary" :disabled="busy || disabled" @click="performEncrypt">
+          {{ busy ? 'Working…' : 'Encrypt & store' }}
         </button>
-        <span v-if="!wallets.length" class="muted">No Sui wallet detected.</span>
-      </span>
-    </template>
-  </section>
 
-  <nav class="tabs">
-    <button :class="{ active: tab === 'encrypt' }" @click="tab = 'encrypt'">Encrypt</button>
-    <button :class="{ active: tab === 'decrypt' }" @click="tab = 'decrypt'">Decrypt</button>
-    <button :class="{ active: tab === 'unlock' }" @click="tab = 'unlock'">Unlock</button>
-  </nav>
+        <div v-if="manifest" style="margin-top:1rem">
+          <p class="muted">Manifest — save this; it's required to decrypt (it holds no secrets):</p>
+          <pre class="manifest">{{ JSON.stringify(manifest, null, 2) }}</pre>
+          <button class="link" @click="downloadManifest">Download manifest</button>
 
-  <div v-if="errorMsg" class="notice notice--error">{{ errorMsg }}</div>
+          <div v-if="manifest.policyType === 'nft-gate'" style="margin-top:0.75rem">
+            <p class="muted">
+              Optional: publish an on-chain pointer so this gate's pass-holders can discover and unlock
+              this content in the Unlock tab (no need to share the manifest).
+            </p>
+            <button class="primary" :disabled="busy || !account" @click="performPublish">
+              {{ busy ? 'Working…' : 'Publish discovery pointer' }}
+            </button>
+            <span v-if="!account" class="muted"> — connect a wallet first.</span>
+            <p v-if="publishDigest" class="muted">Published in tx {{ publishDigest.slice(0, 10) }}…</p>
+          </div>
+        </div>
+      </section>
 
-  <!-- Encrypt -->
-  <section v-show="tab === 'encrypt'" class="card">
-    <label class="field">
-      <span>Policy</span>
-      <select v-model="encType" :disabled="disabled">
-        <option v-for="p in providers" :key="p.type" :value="p.type">
-          {{ p.describe().label }}
-        </option>
-      </select>
-    </label>
-    <p v-if="encProvider" class="muted">{{ encProvider.describe().help }}</p>
-
-    <template v-if="encProvider">
-      <label
-        v-for="f in encProvider.describe().encryptFields"
-        :key="f.name"
-        class="field"
-        :class="{ checkbox: f.kind === 'boolean' }"
-      >
-        <span>{{ f.label }}<template v-if="f.required"> *</template></span>
-        <input v-if="f.kind === 'datetime'" type="datetime-local" v-model="encValues[f.name]" />
-        <input v-else-if="f.kind === 'boolean'" type="checkbox" v-model="encValues[f.name]" />
-        <input v-else type="text" v-model="encValues[f.name]" :placeholder="f.help" />
-      </label>
-    </template>
-
-    <label class="field">
-      <span>Label (optional)</span>
-      <input type="text" v-model="encLabel" placeholder="A name to recognise this later" />
-    </label>
-
-    <label class="field">
-      <span>File</span>
-      <input type="file" @change="onEncFile" />
-    </label>
-
-    <button class="primary" :disabled="busy || disabled" @click="performEncrypt">
-      {{ busy ? 'Working…' : 'Encrypt & store' }}
-    </button>
-
-    <div v-if="manifest" style="margin-top:1rem">
-      <p class="muted">Manifest — save this; it's required to decrypt (it holds no secrets):</p>
-      <pre class="manifest">{{ JSON.stringify(manifest, null, 2) }}</pre>
-      <button class="link" @click="downloadManifest">Download manifest</button>
-
-      <div v-if="manifest.policyType === 'nft-gate'" style="margin-top:0.75rem">
+      <!-- Unlock -->
+      <section v-show="tab === 'unlock'" class="card">
         <p class="muted">
-          Optional: publish an on-chain pointer so this gate's pass-holders can discover and unlock
-          this content in the Unlock tab (no need to share the manifest).
+          Discover content sealed to an access gate and decrypt it with a pass you hold.
         </p>
-        <button class="primary" :disabled="busy || !account" @click="performPublish">
-          {{ busy ? 'Working…' : 'Publish discovery pointer' }}
+        <label class="field">
+          <span>Access gate ID</span>
+          <input type="text" v-model="unlockGateId" placeholder="0x… gate object id" />
+        </label>
+        <button class="primary" :disabled="busy || !unlockGateId" @click="performDiscover">
+          {{ busy ? 'Working…' : 'Find sealed content' }}
         </button>
-        <span v-if="!account" class="muted"> — connect a wallet first.</span>
-        <p v-if="publishDigest" class="muted">Published in tx {{ publishDigest.slice(0, 10) }}…</p>
-      </div>
-    </div>
-  </section>
 
-  <!-- Unlock -->
-  <section v-show="tab === 'unlock'" class="card">
-    <p class="muted">
-      Discover content sealed to an access gate and decrypt it with a pass you hold.
-    </p>
-    <label class="field">
-      <span>Access gate ID</span>
-      <input type="text" v-model="unlockGateId" placeholder="0x… gate object id" />
-    </label>
-    <button class="primary" :disabled="busy || !unlockGateId" @click="performDiscover">
-      {{ busy ? 'Working…' : 'Find sealed content' }}
-    </button>
+        <div v-if="discovered.length" style="margin-top:1rem">
+          <label class="field">
+            <span>Your pass NFT ID *</span>
+            <input type="text" v-model="unlockNftId" placeholder="0x… your AccessNFT for this gate" />
+          </label>
+          <label class="field checkbox">
+            <input type="checkbox" v-model="unlockSoulbound" />
+            <span>Pass is soulbound</span>
+          </label>
 
-    <div v-if="discovered.length" style="margin-top:1rem">
-      <label class="field">
-        <span>Your pass NFT ID *</span>
-        <input type="text" v-model="unlockNftId" placeholder="0x… your AccessNFT for this gate" />
-      </label>
-      <label class="field checkbox">
-        <input type="checkbox" v-model="unlockSoulbound" />
-        <span>Pass is soulbound</span>
-      </label>
+          <div v-for="item in discovered" :key="item.contentId" class="card" style="margin:0.5rem 0">
+            <strong>{{ item.label || '(untitled)' }}</strong>
+            <p class="muted" style="word-break:break-all">blob {{ item.blobId }}</p>
+            <button class="primary" :disabled="busy || !account || !unlockNftId" @click="performUnlock(item)">
+              Unlock &amp; download
+            </button>
+            <span v-if="!account" class="muted"> — connect a wallet to decrypt.</span>
+          </div>
+        </div>
+      </section>
 
-      <div v-for="item in discovered" :key="item.contentId" class="card" style="margin:0.5rem 0">
-        <strong>{{ item.label || '(untitled)' }}</strong>
-        <p class="muted" style="word-break:break-all">blob {{ item.blobId }}</p>
-        <button class="primary" :disabled="busy || !account || !unlockNftId" @click="performUnlock(item)">
-          Unlock &amp; download
+      <!-- Decrypt -->
+      <section v-show="tab === 'decrypt'" class="card">
+        <label class="field">
+          <span>Manifest (paste JSON or upload)</span>
+          <textarea v-model="decManifestText" placeholder='{ "policyType": "...", "id": "...", "blobId": "..." }'></textarea>
+        </label>
+        <input type="file" accept="application/json,.json" @change="onManifestFile" />
+
+        <template v-if="decProvider">
+          <p class="muted" style="margin-top:0.75rem">
+            Policy: {{ decProvider.describe().label }} — {{ decProvider.describe().help }}
+          </p>
+          <label
+            v-for="f in decProvider.describe().decryptFields"
+            :key="f.name"
+            class="field"
+            :class="{ checkbox: f.kind === 'boolean' }"
+          >
+            <span>{{ f.label }}<template v-if="f.required"> *</template></span>
+            <input v-if="f.kind === 'datetime'" type="datetime-local" v-model="decValues[f.name]" />
+            <input v-else-if="f.kind === 'boolean'" type="checkbox" v-model="decValues[f.name]" />
+            <input
+              v-else
+              type="text"
+              v-model="decValues[f.name]"
+              :placeholder="decManifest?.params?.[f.name] != null ? String(decManifest.params[f.name]) : f.help"
+            />
+          </label>
+        </template>
+        <p v-else-if="decManifestText.trim()" class="muted">Unrecognised or invalid manifest.</p>
+
+        <button class="primary" :disabled="busy || !decProvider" @click="performDecrypt">
+          {{ busy ? 'Working…' : 'Decrypt' }}
         </button>
-        <span v-if="!account" class="muted"> — connect a wallet to decrypt.</span>
-      </div>
-    </div>
-  </section>
+      </section>
 
-  <!-- Decrypt -->
-  <section v-show="tab === 'decrypt'" class="card">
-    <label class="field">
-      <span>Manifest (paste JSON or upload)</span>
-      <textarea v-model="decManifestText" placeholder='{ "policyType": "...", "id": "...", "blobId": "..." }'></textarea>
-    </label>
-    <input type="file" accept="application/json,.json" @change="onManifestFile" />
+      <p v-if="status" class="status muted">{{ status }}</p>
 
-    <template v-if="decProvider">
-      <p class="muted" style="margin-top:0.75rem">
-        Policy: {{ decProvider.describe().label }} — {{ decProvider.describe().help }}
+      <p class="muted disclaimer">
+        Decryption keys are released by a threshold committee of independent key servers. If enough
+        servers are unreachable, decryption pauses — storage and retrieval are unaffected.
       </p>
-      <label
-        v-for="f in decProvider.describe().decryptFields"
-        :key="f.name"
-        class="field"
-        :class="{ checkbox: f.kind === 'boolean' }"
-      >
-        <span>{{ f.label }}<template v-if="f.required"> *</template></span>
-        <input v-if="f.kind === 'datetime'" type="datetime-local" v-model="decValues[f.name]" />
-        <input v-else-if="f.kind === 'boolean'" type="checkbox" v-model="decValues[f.name]" />
-        <input
-          v-else
-          type="text"
-          v-model="decValues[f.name]"
-          :placeholder="decManifest?.params?.[f.name] != null ? String(decManifest.params[f.name]) : f.help"
-        />
-      </label>
-    </template>
-    <p v-else-if="decManifestText.trim()" class="muted">Unrecognised or invalid manifest.</p>
+    </div>
 
-    <button class="primary" :disabled="busy || !decProvider" @click="performDecrypt">
-      {{ busy ? 'Working…' : 'Decrypt' }}
-    </button>
-  </section>
-
-  <p v-if="status" class="status muted">{{ status }}</p>
-
-  <footer class="muted" style="margin-top:2rem">
-    Decryption keys are released by a threshold committee of independent key servers. If enough
-    servers are unreachable, decryption pauses — storage and retrieval are unaffected.
-  </footer>
+    <AppFooter v-if="!isEmbedded" />
+  </div>
 </template>
+
+<style scoped>
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app--embedded {
+  min-height: 100%;
+}
+
+.page {
+  flex: 1;
+}
+
+.app--embedded .page {
+  padding-top: 0;
+}
+
+.badge {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.disclaimer {
+  margin-top: 2rem;
+}
+</style>

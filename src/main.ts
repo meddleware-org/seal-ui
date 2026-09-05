@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import '@meddleware/design-tokens/tokens.css'
+import '@meddleware/ui/base.css'
 import './styles.css'
 import App from './App.vue'
 
