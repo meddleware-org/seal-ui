@@ -7,7 +7,7 @@
 // Styles are scoped to this component so the dashboard can import it without pulling seal-ui's
 // global stylesheet (which restyles body / #app / bare inputs). The standalone app keeps those
 // globals via main.ts → styles.css.
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { Transaction } from '@mysten/sui/transactions'
 import {
   buildPublishSealedContentTx,
@@ -15,13 +15,14 @@ import {
   type SealPolicyProvider,
   type SealedContentPointer,
 } from '@meddleware/seal-client'
+import { WalletGuard } from '@meddleware/wallet-adapter'
 import { useWallet } from '../wallet.js'
 import { registry, getSealController } from '../seal.js'
 import { storeBlob, readBlob } from '../walrus.js'
 import { discoverSealedContent } from '../sealed-content.js'
 import { NETWORK, MAINNET_PENDING, SEAL_CONFIGURED, SEAL_PACKAGE_ID } from '../config.js'
 
-const { wallets, account, connect, disconnect, signPersonalMessage, signAndExecute } = useWallet()
+const { account, signPersonalMessage, signAndExecute } = useWallet()
 
 const providers = registry.list() as SealPolicyProvider[]
 const disabled = computed(() => MAINNET_PENDING || !SEAL_CONFIGURED)
@@ -265,10 +266,6 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
   }
 }
 
-const shortAddr = computed(() => {
-  const a = account.value?.address
-  return a ? `${a.slice(0, 6)}…${a.slice(-4)}` : ''
-})
 </script>
 
 <template>
@@ -284,28 +281,7 @@ const shortAddr = computed(() => {
       (<code>VITE_SEAL_PACKAGE_ID_*</code> / <code>VITE_SEAL_SERVER_OBJECT_IDS_*</code>).
     </div>
 
-    <section class="card" style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
-      <template v-if="account">
-        <span class="muted">Connected: {{ shortAddr }}</span>
-        <button class="link" @click="disconnect">Disconnect</button>
-      </template>
-      <template v-else>
-        <span class="muted">Wallet needed only to decrypt.</span>
-        <span>
-          <button
-            v-for="w in wallets"
-            :key="w.name"
-            class="primary"
-            style="margin-left:0.4rem"
-            @click="connect(w)"
-          >
-            Connect {{ w.name }}
-          </button>
-          <span v-if="!wallets.length" class="muted">No Sui wallet detected.</span>
-        </span>
-      </template>
-    </section>
-
+    <WalletGuard message="Connect a Sui wallet to encrypt and decrypt sealed content.">
     <nav class="tabs">
       <button :class="{ active: tab === 'encrypt' }" @click="tab = 'encrypt'">Encrypt</button>
       <button :class="{ active: tab === 'decrypt' }" @click="tab = 'decrypt'">Decrypt</button>
@@ -449,6 +425,7 @@ const shortAddr = computed(() => {
       Decryption keys are released by a threshold committee of independent key servers. If enough
       servers are unreachable, decryption pauses — storage and retrieval are unaffected.
     </p>
+    </WalletGuard>
   </div>
 </template>
 
