@@ -19,7 +19,7 @@ export async function getSealController(): Promise<SealController> {
     const { SealController } = await import('@meddleware/seal-client/controller')
     controller = new SealController(
       {
-        suiClient: getSuiClient(NETWORK),
+        suiClient: getSuiClient(),
         packageId: SEAL_PACKAGE_ID,
         threshold: SEAL_THRESHOLD,
         serverConfigs: SEAL_SERVERS,

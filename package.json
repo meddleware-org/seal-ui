@@ -1,6 +1,6 @@
 {
   "name": "@meddleware/seal-ui",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Standalone Vue 3 SPA for Sealed Storage — client-side Seal encryption + access-gated, decentralised Walrus storage on Sui.",
   "author": "MeddleWare <meddleware@proton.me>",
   "license": "0BSD",
@@ -39,8 +39,8 @@
   "dependencies": {
     "@meddleware/design-tokens": "^0.1.2",
     "@meddleware/seal-client": "^0.0.2",
-    "@meddleware/ui": "^0.1.6",
-    "@meddleware/wallet-adapter": "^0.0.4",
+    "@meddleware/ui": "^0.1.7",
+    "@meddleware/wallet-adapter": "^0.0.5",
     "@mysten/seal": "^1.4.7",
     "@mysten/sui": "^2.28.0",
     "@mysten/wallet-standard": "^0.20.0",

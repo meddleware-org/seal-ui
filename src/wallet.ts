@@ -1,20 +1,22 @@
 // Thin seal-ui shim over the shared @meddleware/wallet-adapter singleton.
 //
-// The adapter is network-agnostic (RPC URL passed per call); this shim binds seal-ui's RPC_URLS
-// so call sites keep the ergonomics (`getSuiClient()` defaulting to the active network,
-// `signAndExecute(tx)`). Because the adapter is a module singleton, the wallet connection is
-// shared with any other tool view rendered in the same window (e.g. the dashboard).
+// RPC URL is resolved from the runtime useNetwork() singleton so network switching
+// in the dashboard propagates immediately to all tool views. Because the adapter is a
+// module singleton, the wallet connection is shared with any other tool view rendered
+// in the same window (e.g. the dashboard).
 import {
   useWallet as useWalletBase,
   getSuiClient as getSuiClientBase,
   buildExecutor as buildExecutorBase,
+  useNetwork,
 } from '@meddleware/wallet-adapter'
 import type { Transaction } from '@mysten/sui/transactions'
-import { NETWORK, RPC_URLS, type Network } from './config.js'
 
-/** Memoised Sui JSON-RPC client for the network (defaults to the active network). */
-export function getSuiClient(network: Network = NETWORK) {
-  return getSuiClientBase(network, RPC_URLS[network])
+const { network, rpcUrl } = useNetwork()
+
+/** Memoised Sui gRPC client for the currently selected network. */
+export function getSuiClient() {
+  return getSuiClientBase(network.value, rpcUrl.value)
 }
 
 /** Sign a personal message with the connected wallet (mints a Seal SessionKey). */
@@ -23,11 +25,8 @@ export function signPersonalMessage(message: Uint8Array): Promise<{ signature: s
 }
 
 /** Sign + execute a PTB with the connected wallet, returning the transaction digest. */
-export async function signAndExecute(
-  tx: Transaction,
-  network: Network = NETWORK,
-): Promise<{ digest: string }> {
-  const executor = await buildExecutorBase(network, RPC_URLS[network])
+export async function signAndExecute(tx: Transaction): Promise<{ digest: string }> {
+  const executor = await buildExecutorBase(network.value, rpcUrl.value)
   return executor.signAndExecute(tx)
 }
 
