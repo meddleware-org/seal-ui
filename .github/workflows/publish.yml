@@ -120,6 +120,12 @@ jobs:
           provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            VITE_NETWORK=${{ vars.VITE_NETWORK || 'testnet' }}
+            VITE_SEAL_PACKAGE_ID_TESTNET=${{ secrets.VITE_SEAL_PACKAGE_ID_TESTNET }}
+            VITE_SEAL_SERVER_OBJECT_IDS_TESTNET=${{ secrets.VITE_SEAL_SERVER_OBJECT_IDS_TESTNET }}
+            VITE_SEAL_AGGREGATOR_URLS_TESTNET=${{ secrets.VITE_SEAL_AGGREGATOR_URLS_TESTNET }}
+            VITE_SEAL_THRESHOLD=${{ vars.VITE_SEAL_THRESHOLD || '2' }}
 
       - uses: sigstore/cosign-installer@v4.1.2
 
@@ -191,3 +197,9 @@ jobs:
           provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            VITE_NETWORK=${{ vars.VITE_NETWORK || 'testnet' }}
+            VITE_SEAL_PACKAGE_ID_TESTNET=${{ secrets.VITE_SEAL_PACKAGE_ID_TESTNET }}
+            VITE_SEAL_SERVER_OBJECT_IDS_TESTNET=${{ secrets.VITE_SEAL_SERVER_OBJECT_IDS_TESTNET }}
+            VITE_SEAL_AGGREGATOR_URLS_TESTNET=${{ secrets.VITE_SEAL_AGGREGATOR_URLS_TESTNET }}
+            VITE_SEAL_THRESHOLD=${{ vars.VITE_SEAL_THRESHOLD || '2' }}

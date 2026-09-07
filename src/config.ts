@@ -30,16 +30,32 @@ export const SEAL_PACKAGE_ID: string =
     ? '0x9f0563bfe42fbd29932cd280cc47efe17f5339b4dc569eb110114665eecc231e'
     : '')
 
-/** Threshold `t` in the t-of-n committee (default 2). */
+/** Threshold `t` in the t-of-n committee (default 2 — matches the 3-server testnet default). */
 export const SEAL_THRESHOLD = Number(env.VITE_SEAL_THRESHOLD || '2')
 
 /**
  * The key-server committee. Object ids and aggregator URLs are supplied as parallel CSV lists
- * (index-aligned); aggregatorUrl is required for committee-mode servers.
+ * (index-aligned); aggregatorUrl is required for decentralized (committee-type) servers only —
+ * independent servers derive their URL from the on-chain object and do not need one.
+ *
+ * Defaults are the three verified Mysten Labs testnet servers:
+ *   [0] Decentralized (Mysten) — requires aggregatorUrl
+ *   [1] Independent server 1
+ *   [2] Independent server 2
+ * Override via VITE_SEAL_SERVER_OBJECT_IDS_TESTNET / VITE_SEAL_AGGREGATOR_URLS_TESTNET.
  */
 export const SEAL_SERVERS: KeyServerConfig[] = (() => {
-  const ids = csv(netEnv('VITE_SEAL_SERVER_OBJECT_IDS'))
-  const aggs = csv(netEnv('VITE_SEAL_AGGREGATOR_URLS'))
+  const defaultIds = [
+    '0xb012378c9f3799fb5b1a7083da74a4069e3c3f1c93de0b27212a5799ce1e1e98',
+    '0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75',
+    '0xf5d14a81a982144ae441cd7d64b09027f116a468bd36e7eca494f750591623c8',
+  ]
+  const defaultAggs = ['https://seal-aggregator-testnet.mystenlabs.com']
+
+  const envIds = csv(netEnv('VITE_SEAL_SERVER_OBJECT_IDS'))
+  const envAggs = csv(netEnv('VITE_SEAL_AGGREGATOR_URLS'))
+  const ids = envIds.length > 0 ? envIds : (NETWORK === 'testnet' ? defaultIds : [])
+  const aggs = envAggs.length > 0 ? envAggs : (NETWORK === 'testnet' ? defaultAggs : [])
   return ids.map((objectId, i) => ({ objectId, weight: 1, aggregatorUrl: aggs[i] }))
 })()
 
