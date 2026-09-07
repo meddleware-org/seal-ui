@@ -7,7 +7,7 @@
 // Styles are scoped to this component so the dashboard can import it without pulling seal-ui's
 // global stylesheet (which restyles body / #app / bare inputs). The standalone app keeps those
 // globals via main.ts → styles.css.
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Transaction } from '@mysten/sui/transactions'
 import {
   buildPublishSealedContentTx,
