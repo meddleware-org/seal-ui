@@ -19,8 +19,11 @@ and later decrypt it if the on-chain policy allows.
 - **Storage is opaque HTTP.** Ciphertext is stored/read via the Walrus HTTP publisher/aggregator
   (`src/walrus.ts`) — no `@mysten/walrus` SDK, no wasm. Routing uploads through the Meddleware relay
   (to capture tip/commission) is a documented future enhancement.
-- **Wallet-agnostic.** Wallet access goes through `src/wallet.ts` (wallet-standard). The wallet is
-  needed only to decrypt (to sign the SessionKey personal message).
+- **Wallet-agnostic + shared.** Wallet access goes through `src/wallet.ts`, a thin shim over the
+  shared `@meddleware/wallet-adapter` singleton (binds this app's `RPC_URLS`). The wallet is needed
+  only to decrypt (sign the SessionKey personal message) and to publish a discovery pointer. The
+  singleton means that when `SealView` is embedded in the dashboard alongside other tool views,
+  they all share one connection. Do not reintroduce a local wallet-standard implementation.
 
 ## Key files
 
@@ -28,9 +31,20 @@ and later decrypt it if the on-chain policy allows.
 | --- | --- |
 | `src/config.ts` | Build-time env: network, RPC, seal package id, committee ids/aggregators, walrus endpoints |
 | `src/seal.ts` | Shared `registry` + lazy `SealController` from config |
-| `src/wallet.ts` | wallet-standard connect + `signPersonalMessage` + memoised `SuiJsonRpcClient` |
+| `src/wallet.ts` | Shim over `@meddleware/wallet-adapter` binding this app's `RPC_URLS`; re-exports `useWallet` / `getSuiClient` / `signPersonalMessage` / `signAndExecute` |
 | `src/walrus.ts` | Walrus HTTP `storeBlob` / `readBlob` |
-| `src/App.vue` | Encrypt/Decrypt tabs; generic policy form; manifest download/parse |
+| `src/components/SealView.vue` | Core tool UI (Encrypt/Decrypt/Unlock tabs, generic policy form, manifest, publish pointer). **Scoped** styles so it embeds without the global stylesheet. Exported from `src/index.ts`. |
+| `src/index.ts` | Library entry — exports `SealView` for the dashboard to render inline |
+| `src/App.vue` | Standalone shell only: `AppHeader` (+ network badge, `ColorModeControl`) + `<SealView>` + `AppFooter` |
+| `src/styles.css` | Standalone-only globals (body/#app/h1); imported by `main.ts`. Component styles live scoped in `SealView.vue` — do NOT move them back here (a global import would restyle a host's body/#app/inputs). |
+
+## Dual app + library
+
+This package is **both** a standalone SPA (`App.vue` + `main.ts`, `vite build`) and a library
+(`src/index.ts` exports `SealView`, resolved via `"exports"`). The dashboard imports `SealView` and
+wraps it in its own shell + shared wallet. `SealView` carries its own **scoped** styles, so no
+consumer needs seal-ui's `styles.css`. Keep the tool UI shell-free in `SealView.vue`; `App.vue` must
+remain a thin shell.
 
 ## Network gating
 
