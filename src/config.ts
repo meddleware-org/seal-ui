@@ -30,32 +30,53 @@ export const SEAL_PACKAGE_ID: string =
     ? '0x9f0563bfe42fbd29932cd280cc47efe17f5339b4dc569eb110114665eecc231e'
     : '')
 
-/** Threshold `t` in the t-of-n committee (default 2 — matches the 3-server testnet default). */
-export const SEAL_THRESHOLD = Number(env.VITE_SEAL_THRESHOLD || '2')
+/**
+ * Threshold `t` in the t-of-n committee.
+ *   Testnet default: 2 (matches the 3-server testnet committee)
+ *   Mainnet default: 5 (matches the 5-of-8 Mysten Labs mainnet committee)
+ */
+export const SEAL_THRESHOLD = Number(
+  env.VITE_SEAL_THRESHOLD || (NETWORK === 'mainnet' ? '5' : '2'),
+)
 
 /**
  * The key-server committee. Object ids and aggregator URLs are supplied as parallel CSV lists
  * (index-aligned); aggregatorUrl is required for decentralized (committee-type) servers only —
  * independent servers derive their URL from the on-chain object and do not need one.
  *
- * Defaults are the three verified Mysten Labs testnet servers:
- *   [0] Decentralized (Mysten) — requires aggregatorUrl
+ * Testnet defaults — three verified Mysten Labs servers:
+ *   [0] Decentralized (Mysten aggregator) — requires aggregatorUrl
  *   [1] Independent server 1
  *   [2] Independent server 2
  * Override via VITE_SEAL_SERVER_OBJECT_IDS_TESTNET / VITE_SEAL_AGGREGATOR_URLS_TESTNET.
+ *
+ * Mainnet defaults — Mysten Labs 5-of-8 decentralized committee:
+ *   Committee object: 0x686098f1439237fff9f36b99c7329683c22979d2005c2465cb891acb012a7595
+ *   Aggregator: https://seal-aggregator-mainnet.mystenlabs.com
+ *   NOTE: The mainnet aggregator requires an Enoki API key (X-API-Key header).
+ *   Override via VITE_SEAL_SERVER_OBJECT_IDS_MAINNET / VITE_SEAL_AGGREGATOR_URLS_MAINNET.
+ *   When independent open-mode key servers become available on mainnet, they can be added here.
  */
 export const SEAL_SERVERS: KeyServerConfig[] = (() => {
-  const defaultIds = [
-    '0xb012378c9f3799fb5b1a7083da74a4069e3c3f1c93de0b27212a5799ce1e1e98',
-    '0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75',
-    '0xf5d14a81a982144ae441cd7d64b09027f116a468bd36e7eca494f750591623c8',
-  ]
-  const defaultAggs = ['https://seal-aggregator-testnet.mystenlabs.com']
+  const defaults: Record<Network, { ids: string[]; aggs: string[] }> = {
+    testnet: {
+      ids: [
+        '0xb012378c9f3799fb5b1a7083da74a4069e3c3f1c93de0b27212a5799ce1e1e98',
+        '0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75',
+        '0xf5d14a81a982144ae441cd7d64b09027f116a468bd36e7eca494f750591623c8',
+      ],
+      aggs: ['https://seal-aggregator-testnet.mystenlabs.com'],
+    },
+    mainnet: {
+      ids: ['0x686098f1439237fff9f36b99c7329683c22979d2005c2465cb891acb012a7595'],
+      aggs: ['https://seal-aggregator-mainnet.mystenlabs.com'],
+    },
+  }
 
   const envIds = csv(netEnv('VITE_SEAL_SERVER_OBJECT_IDS'))
   const envAggs = csv(netEnv('VITE_SEAL_AGGREGATOR_URLS'))
-  const ids = envIds.length > 0 ? envIds : (NETWORK === 'testnet' ? defaultIds : [])
-  const aggs = envAggs.length > 0 ? envAggs : (NETWORK === 'testnet' ? defaultAggs : [])
+  const ids = envIds.length > 0 ? envIds : defaults[NETWORK].ids
+  const aggs = envAggs.length > 0 ? envAggs : defaults[NETWORK].aggs
   return ids.map((objectId, i) => ({ objectId, weight: 1, aggregatorUrl: aggs[i] }))
 })()
 
@@ -75,11 +96,12 @@ export const WALRUS_AGGREGATOR: string =
 /** Default blob lifetime (Walrus storage epochs). */
 export const WALRUS_EPOCHS = Number(env.VITE_WALRUS_EPOCHS || '5')
 
-/**
- * Seal committee mode is testnet-only today. On mainnet the app shows a "pending" notice and
- * disables sealing until the committee is available there.
- */
-export const MAINNET_PENDING = NETWORK === 'mainnet'
-
 /** True when the on-chain policy package + committee are configured for the active network. */
 export const SEAL_CONFIGURED = Boolean(SEAL_PACKAGE_ID) && SEAL_SERVERS.length > 0
+
+/**
+ * True when the active network has no Seal committee configured (empty package ID or no servers).
+ * On mainnet, populate VITE_SEAL_PACKAGE_ID_MAINNET + VITE_SEAL_SERVER_OBJECT_IDS_MAINNET +
+ * VITE_SEAL_AGGREGATOR_URLS_MAINNET to enable sealing — no code change required.
+ */
+export const MAINNET_PENDING = !SEAL_CONFIGURED

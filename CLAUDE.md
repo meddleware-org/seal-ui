@@ -48,8 +48,11 @@ remain a thin shell.
 
 ## Network gating
 
-Seal committee mode is testnet-only today. On mainnet (`VITE_NETWORK=mainnet`) the app shows a
-"mainnet pending" notice and disables sealing (`MAINNET_PENDING` / `SEAL_CONFIGURED` in config).
+The UI is enabled when `SEAL_CONFIGURED` is true (package ID + committee both non-empty for the
+active network). On mainnet, populate `VITE_SEAL_PACKAGE_ID_MAINNET`,
+`VITE_SEAL_SERVER_OBJECT_IDS_MAINNET`, and `VITE_SEAL_AGGREGATOR_URLS_MAINNET` — no code change
+required. Until those are set, the app shows a "not configured" notice and disables sealing.
+`MAINNET_PENDING` is now an alias for `!SEAL_CONFIGURED` (config-driven, not hardcoded).
 
 ## Dependency order
 

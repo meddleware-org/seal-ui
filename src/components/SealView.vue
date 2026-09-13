@@ -20,12 +20,12 @@ import { useWallet } from '../wallet.js'
 import { registry, getSealController } from '../seal.js'
 import { storeBlob, readBlob } from '../walrus.js'
 import { discoverSealedContent } from '../sealed-content.js'
-import { NETWORK, MAINNET_PENDING, SEAL_CONFIGURED, SEAL_PACKAGE_ID } from '../config.js'
+import { NETWORK, SEAL_CONFIGURED, SEAL_PACKAGE_ID } from '../config.js'
 
 const { account, signPersonalMessage, signAndExecute } = useWallet()
 
 const providers = registry.list() as SealPolicyProvider[]
-const disabled = computed(() => MAINNET_PENDING || !SEAL_CONFIGURED)
+const disabled = computed(() => !SEAL_CONFIGURED)
 
 type Tab = 'encrypt' | 'decrypt' | 'unlock'
 const tab = ref<Tab>('encrypt')
@@ -272,13 +272,17 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
   <div class="page">
     <p class="muted">Client-side encrypted, access-gated storage on Walrus + Sui.</p>
 
-    <div v-if="MAINNET_PENDING" class="notice notice--warn">
-      Mainnet support is pending — Seal committee mode is currently testnet-only. Switch to testnet to
-      seal content.
-    </div>
-    <div v-else-if="!SEAL_CONFIGURED" class="notice notice--warn">
-      This deployment has no Seal policy package or key-server committee configured
-      (<code>VITE_SEAL_PACKAGE_ID_*</code> / <code>VITE_SEAL_SERVER_OBJECT_IDS_*</code>).
+    <div v-if="!SEAL_CONFIGURED" class="notice notice--warn">
+      <template v-if="NETWORK === 'mainnet'">
+        Seal is not configured for mainnet. Set
+        <code>VITE_SEAL_PACKAGE_ID_MAINNET</code>,
+        <code>VITE_SEAL_SERVER_OBJECT_IDS_MAINNET</code>, and
+        <code>VITE_SEAL_AGGREGATOR_URLS_MAINNET</code>, then redeploy.
+      </template>
+      <template v-else>
+        This deployment has no Seal policy package or key-server committee configured
+        (<code>VITE_SEAL_PACKAGE_ID_*</code> / <code>VITE_SEAL_SERVER_OBJECT_IDS_*</code>).
+      </template>
     </div>
 
     <WalletGuard message="Connect a Sui wallet to encrypt and decrypt sealed content.">
