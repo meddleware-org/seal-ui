@@ -6,10 +6,10 @@
 import { createDefaultRegistry, type PolicyRegistry } from '@meddleware/seal-client'
 import type { SealController } from '@meddleware/seal-client/controller'
 import { getSuiClient } from './wallet.js'
-import { NETWORK, SEAL_PACKAGE_ID, SEAL_THRESHOLD, SEAL_SERVERS } from './config.js'
+import { NETWORK, SEAL_PACKAGE_ID, SEAL_THRESHOLD, SEAL_SERVERS, ACCESS_GATE_PACKAGE_ID } from './config.js'
 
 /** The policy registry (nft-gate + time-lock as peers). Iterate `list()` to render the picker. */
-export const registry: PolicyRegistry = createDefaultRegistry()
+export const registry: PolicyRegistry = createDefaultRegistry(ACCESS_GATE_PACKAGE_ID[NETWORK])
 
 let controller: SealController | null = null
 

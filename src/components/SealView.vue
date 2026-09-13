@@ -7,7 +7,7 @@
 // Styles are scoped to this component so the dashboard can import it without pulling seal-ui's
 // global stylesheet (which restyles body / #app / bare inputs). The standalone app keeps those
 // globals via main.ts → styles.css.
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { AppTabNav, type AppTab } from '@meddleware/ui'
 import { Transaction } from '@mysten/sui/transactions'
 import {
@@ -15,9 +15,10 @@ import {
   type SealedManifest,
   type SealPolicyProvider,
   type SealedContentPointer,
+  type FieldSuggestion,
 } from '@meddleware/seal-client'
 import { WalletGuard } from '@meddleware/wallet-adapter'
-import { useWallet } from '../wallet.js'
+import { useWallet, getSuiClient } from '../wallet.js'
 import { registry, getSealController } from '../seal.js'
 import { storeBlob, readBlob } from '../walrus.js'
 import { discoverSealedContent } from '../sealed-content.js'
@@ -36,12 +37,15 @@ const TABS: AppTab[] = [
 const tab = ref<string>('encrypt')
 
 // Deep-link from access-gate-ui: ?gate=<id> preselects the nft-gate policy + gate.
+// Force manual mode so the pre-set ID renders in the text input immediately, before suggestions load.
 onMounted(() => {
   const gate = new URLSearchParams(location.search).get('gate')
   if (gate && providers.some((p) => p.type === 'nft-gate')) {
     encType.value = 'nft-gate'
     encValues.value = { ...encValues.value, gateId: gate }
+    encGateManual.value = true
     unlockGateId.value = gate
+    unlockGateManual.value = true
   }
 })
 const busy = ref(false)
@@ -63,6 +67,21 @@ function triggerDownload(blob: Blob, name: string): void {
   URL.revokeObjectURL(url)
 }
 
+// ── Gate suggestions (nft-gate policy) ───────────────────────────────────────
+const encGateSuggestions = ref<FieldSuggestion[]>([])
+const encGateManual = ref(false)
+const encGateLoading = ref(false)
+const unlockGateSuggestions = ref<FieldSuggestion[]>([])
+const unlockGateManual = ref(false)
+const unlockGateLoading = ref(false)
+
+async function fetchGateSuggestions(provider: SealPolicyProvider | null): Promise<FieldSuggestion[]> {
+  const addr = account.value?.address
+  if (!addr || !provider || !provider.suggest) return []
+  const result = await provider.suggest({ account: addr, client: getSuiClient() })
+  return result.gateId ?? []
+}
+
 // ── Encrypt ──────────────────────────────────────────────────────────────────
 const encType = ref(providers[0]?.type ?? '')
 const encProvider = computed(() => providers.find((p) => p.type === encType.value) ?? null)
@@ -74,6 +93,39 @@ const manifest = ref<SealedManifest | null>(null)
 function onEncFile(e: Event): void {
   encFile.value = (e.target as HTMLInputElement).files?.[0] ?? null
 }
+
+watch(
+  [() => account.value?.address, encProvider],
+  async ([, provider]) => {
+    if (encType.value !== 'nft-gate') { encGateSuggestions.value = []; return }
+    encGateLoading.value = true
+    encGateManual.value = false
+    try {
+      encGateSuggestions.value = await fetchGateSuggestions(provider)
+    } catch {
+      encGateSuggestions.value = []
+    } finally {
+      encGateLoading.value = false
+    }
+  },
+)
+
+watch(
+  [() => account.value?.address, tab],
+  async ([, t]) => {
+    if (t !== 'unlock') return
+    const nftGateProvider = providers.find((p) => p.type === 'nft-gate') ?? null
+    unlockGateLoading.value = true
+    unlockGateManual.value = false
+    try {
+      unlockGateSuggestions.value = await fetchGateSuggestions(nftGateProvider)
+    } catch {
+      unlockGateSuggestions.value = []
+    } finally {
+      unlockGateLoading.value = false
+    }
+  },
+)
 
 async function performEncrypt(): Promise<void> {
   errorMsg.value = null
@@ -308,17 +360,31 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
       <p v-if="encProvider" class="muted">{{ encProvider.describe().help }}</p>
 
       <template v-if="encProvider">
-        <label
-          v-for="f in encProvider.describe().encryptFields"
-          :key="f.name"
-          class="field"
-          :class="{ checkbox: f.kind === 'boolean' }"
-        >
-          <span>{{ f.label }}<template v-if="f.required"> *</template></span>
-          <input v-if="f.kind === 'datetime'" type="datetime-local" v-model="encValues[f.name]" />
-          <input v-else-if="f.kind === 'boolean'" type="checkbox" v-model="encValues[f.name]" />
-          <input v-else type="text" v-model="encValues[f.name]" :placeholder="f.help" />
-        </label>
+        <template v-for="f in encProvider.describe().encryptFields" :key="f.name">
+          <!-- Gate ID field: show a picker when wallet-owned gates are available -->
+          <label v-if="f.name === 'gateId'" class="field">
+            <span>{{ f.label }}<template v-if="f.required"> *</template></span>
+            <span v-if="encGateLoading" class="muted" style="font-size:0.8rem">Loading your gates…</span>
+            <template v-else-if="encGateSuggestions.length && !encGateManual">
+              <select v-model="encValues[f.name]">
+                <option value="">Select a gate…</option>
+                <option v-for="s in encGateSuggestions" :key="s.value" :value="s.value">{{ s.label }}</option>
+              </select>
+              <button class="link" style="margin-top:0.25rem" @click="encGateManual = true; encValues[f.name] = ''">Enter ID manually</button>
+            </template>
+            <template v-else>
+              <input type="text" v-model="encValues[f.name]" :placeholder="f.help" />
+              <button v-if="encGateSuggestions.length" class="link" style="margin-top:0.25rem" @click="encGateManual = false; encValues[f.name] = ''">← Back to picker</button>
+            </template>
+          </label>
+          <!-- All other fields: generic rendering -->
+          <label v-else class="field" :class="{ checkbox: f.kind === 'boolean' }">
+            <span>{{ f.label }}<template v-if="f.required"> *</template></span>
+            <input v-if="f.kind === 'datetime'" type="datetime-local" v-model="encValues[f.name]" />
+            <input v-else-if="f.kind === 'boolean'" type="checkbox" v-model="encValues[f.name]" />
+            <input v-else type="text" v-model="encValues[f.name]" :placeholder="f.help" />
+          </label>
+        </template>
       </template>
 
       <label class="field">
@@ -361,7 +427,18 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
       </p>
       <label class="field">
         <span>Access gate ID</span>
-        <input type="text" v-model="unlockGateId" placeholder="0x… gate object id" />
+        <span v-if="unlockGateLoading" class="muted" style="font-size:0.8rem">Loading your gates…</span>
+        <template v-else-if="unlockGateSuggestions.length && !unlockGateManual">
+          <select v-model="unlockGateId">
+            <option value="">Select a gate…</option>
+            <option v-for="s in unlockGateSuggestions" :key="s.value" :value="s.value">{{ s.label }}</option>
+          </select>
+          <button class="link" style="margin-top:0.25rem" @click="unlockGateManual = true; unlockGateId = ''">Enter ID manually</button>
+        </template>
+        <template v-else>
+          <input type="text" v-model="unlockGateId" placeholder="0x… gate object id" />
+          <button v-if="unlockGateSuggestions.length" class="link" style="margin-top:0.25rem" @click="unlockGateManual = false; unlockGateId = ''">← Back to picker</button>
+        </template>
       </label>
       <button class="primary" :disabled="busy || !unlockGateId" @click="performDiscover">
         {{ busy ? 'Working…' : 'Find sealed content' }}

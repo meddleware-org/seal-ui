@@ -96,6 +96,16 @@ export const WALRUS_AGGREGATOR: string =
 /** Default blob lifetime (Walrus storage epochs). */
 export const WALRUS_EPOCHS = Number(env.VITE_WALRUS_EPOCHS || '5')
 
+/**
+ * Meddleware's deployed `access_gate` package IDs per network.
+ * Used by the nft-gate provider's `suggest()` to list AdminCap-owned gates for the connected wallet.
+ * Kept in sync with access-gate-ui/src/constants.ts (same deployment).
+ */
+export const ACCESS_GATE_PACKAGE_ID: Record<Network, string> = {
+  testnet: '0x0bedd0b27d993d3292ca6a5315f7562de8bc0ff3752b445b4c53252c76f2d20d',
+  mainnet: '',
+}
+
 /** True when the on-chain policy package + committee are configured for the active network. */
 export const SEAL_CONFIGURED = Boolean(SEAL_PACKAGE_ID) && SEAL_SERVERS.length > 0
 
