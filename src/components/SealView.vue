@@ -8,6 +8,7 @@
 // global stylesheet (which restyles body / #app / bare inputs). The standalone app keeps those
 // globals via main.ts → styles.css.
 import { computed, onMounted, ref } from 'vue'
+import { AppTabNav, type AppTab } from '@meddleware/ui'
 import { Transaction } from '@mysten/sui/transactions'
 import {
   buildPublishSealedContentTx,
@@ -27,8 +28,12 @@ const { account, signPersonalMessage, signAndExecute } = useWallet()
 const providers = registry.list() as SealPolicyProvider[]
 const disabled = computed(() => !SEAL_CONFIGURED)
 
-type Tab = 'encrypt' | 'decrypt' | 'unlock'
-const tab = ref<Tab>('encrypt')
+const TABS: AppTab[] = [
+  { id: 'encrypt', label: 'Encrypt' },
+  { id: 'decrypt', label: 'Decrypt' },
+  { id: 'unlock', label: 'Unlock' },
+]
+const tab = ref<string>('encrypt')
 
 // Deep-link from access-gate-ui: ?gate=<id> preselects the nft-gate policy + gate.
 onMounted(() => {
@@ -286,11 +291,7 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
     </div>
 
     <WalletGuard message="Connect a Sui wallet to encrypt and decrypt sealed content.">
-    <nav class="tabs">
-      <button :class="{ active: tab === 'encrypt' }" @click="tab = 'encrypt'">Encrypt</button>
-      <button :class="{ active: tab === 'decrypt' }" @click="tab = 'decrypt'">Decrypt</button>
-      <button :class="{ active: tab === 'unlock' }" @click="tab = 'unlock'">Unlock</button>
-    </nav>
+    <AppTabNav :tabs="TABS" v-model="tab" style="margin: 1rem 0" />
 
     <div v-if="errorMsg" class="notice notice--error">{{ errorMsg }}</div>
 
@@ -450,25 +451,6 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
 .notice--warn { background: color-mix(in srgb, #d29922 15%, transparent); }
 .notice--error { background: color-mix(in srgb, #f85149 18%, transparent); }
 
-.tabs {
-  display: flex;
-  gap: 0.25rem;
-  margin: 1rem 0;
-  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
-}
-.tabs button {
-  background: transparent;
-  border: 0;
-  color: inherit;
-  padding: 0.5rem 0.9rem;
-  cursor: pointer;
-  opacity: 0.7;
-  border-bottom: 2px solid transparent;
-}
-.tabs button.active {
-  opacity: 1;
-  border-bottom-color: var(--accent, #c0503f);
-}
 
 .card {
   background: var(--surface, #1e1917);
