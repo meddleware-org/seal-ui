@@ -3,6 +3,14 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.12] - 2026-09-17
+
+### Added
+
+- `VITE_DOCS_URL` build-time env var — configures the documentation link rendered in the app
+  footer. Defaults to `https://docs.meddleware.co.uk/blockchain/sui/sealed-storage/`.
+- `homepage` in `package.json` — links to the Sealed Storage docs section on npmjs.com.
+
 ## [0.1.0] - 2026-09-02
 
 ### Added

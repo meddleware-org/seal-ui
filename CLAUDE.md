@@ -65,3 +65,23 @@ build. For local dev: `cd ../seal-client && npm link`, then `npm link @meddlewar
 - Do not add policy-specific logic here — it belongs in `@meddleware/seal-client` + `seal_policies`.
 - Do not hold or derive decryption keys; the committee does that.
 - Do not hardcode network config; read `import.meta.env.VITE_*` via `src/config.ts`.
+
+---
+
+## Deferred documentation — NOT for the `docs.` website (planned here per Part 0.4)
+
+> Captured for the future **`dev.meddleware.co.uk`** subdomain and white-label offering; excluded
+> from the user-facing `docs.` site (which covers encrypt/store/decrypt for end users only).
+
+### `dev.` — developer integration (to write later)
+
+- **Embed `SealView`** (`import { SealView } from '@meddleware/seal-ui'`) with the shared
+  `@meddleware/wallet-adapter`; the registry-driven policy picker means new policies need no change
+  here. The SDK-level story (controller, providers, manifest) lives in `@meddleware/seal-client`; the
+  on-chain policy contracts in `seal_policies` (`seal-policies-sui`).
+
+### White-label operator path (to write later)
+
+- Deploying against an operator's **own `seal_policies` package + key-server committee**: the
+  `VITE_SEAL_*` build args (package id, committee ids, aggregator URLs, threshold) and how mainnet is
+  enabled purely by populating them (`SEAL_CONFIGURED`); branding via design-tokens + `AppHeader`.
