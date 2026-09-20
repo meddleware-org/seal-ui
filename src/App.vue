@@ -7,6 +7,7 @@ import SealView from './components/SealView.vue'
 
 const { mode, set } = useColorMode('dark')
 const DOCS_URL = import.meta.env.VITE_DOCS_URL || 'https://docs.meddleware.co.uk/blockchain/sui/sealed-storage/'
+const DEV_URL  = import.meta.env.VITE_DEV_URL  || 'https://dev.meddleware.co.uk/sui/sealed-storage/'
 </script>
 
 <template>
@@ -23,7 +24,7 @@ const DOCS_URL = import.meta.env.VITE_DOCS_URL || 'https://docs.meddleware.co.uk
 
     <SealView />
 
-    <AppFooter :docs-url="DOCS_URL" />
+    <AppFooter :docs-url="DOCS_URL" :dev-url="DEV_URL" />
   </div>
 </template>
 

@@ -17,6 +17,7 @@ import {
   type SealedContentPointer,
   type FieldSuggestion,
 } from '@meddleware/seal-client'
+import { checkManifestForNetwork } from '../manifest-guard.js'
 import { WalletGuard } from '@meddleware/wallet-adapter'
 import { useWallet, getSuiClient } from '../wallet.js'
 import { registry, getSealController } from '../seal.js'
@@ -175,14 +176,13 @@ function downloadManifest(): void {
 // ── Decrypt ──────────────────────────────────────────────────────────────────
 const decManifestText = ref('')
 const decValues = ref<Record<string, string | boolean>>({})
-const decManifest = computed<SealedManifest | null>(() => {
-  if (!decManifestText.value.trim()) return null
-  try {
-    return JSON.parse(decManifestText.value) as SealedManifest
-  } catch {
-    return null
-  }
-})
+// Validate the pasted/loaded manifest through the shared schema guard (rejects malformed shapes)
+// AND enforce that it targets the network this app is built for — a manifest sealed on another
+// network references a package + committee that don't exist here and can never decrypt. The
+// `decManifestError` is surfaced next to the input so a rejection explains itself.
+const decCheck = computed(() => checkManifestForNetwork(decManifestText.value, NETWORK))
+const decManifest = computed<SealedManifest | null>(() => decCheck.value.manifest)
+const decManifestError = computed<string | null>(() => decCheck.value.error)
 const decProvider = computed(() =>
   decManifest.value ? (providers.find((p) => p.type === decManifest.value?.policyType) ?? null) : null,
 )
@@ -494,6 +494,7 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
           />
         </label>
       </template>
+      <p v-else-if="decManifestError" class="muted">{{ decManifestError }}</p>
       <p v-else-if="decManifestText.trim()" class="muted">Unrecognised or invalid manifest.</p>
 
       <button class="primary" :disabled="busy || !decProvider" @click="performDecrypt">

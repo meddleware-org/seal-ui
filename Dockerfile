@@ -12,7 +12,7 @@
 #   VITE_WALRUS_PUBLISHER_{NET}           — Walrus HTTP publisher (optional; sensible default)
 #   VITE_WALRUS_AGGREGATOR_{NET}          — Walrus HTTP aggregator (optional; sensible default)
 #   VITE_WALRUS_EPOCHS                    — blob lifetime in epochs (default 5)
-FROM node:22-slim AS build
+FROM node:24-slim AS build
 
 WORKDIR /app
 
