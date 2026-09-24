@@ -8,7 +8,7 @@
 // global stylesheet (which restyles body / #app / bare inputs). The standalone app keeps those
 // globals via main.ts → styles.css.
 import { computed, onMounted, ref, watch } from 'vue'
-import { AppTabNav, type AppTab } from '@meddleware/ui'
+import { AppTabNav, UiStepper, type AppTab, type StepperStep } from '@meddleware/ui'
 import { Transaction } from '@mysten/sui/transactions'
 import {
   buildPublishSealedContentTx,
@@ -36,6 +36,30 @@ const TABS: AppTab[] = [
   { id: 'unlock', label: 'Unlock' },
 ]
 const tab = ref<string>('encrypt')
+
+const ENC_STEPS: StepperStep[] = [
+  { id: 'policy', label: 'Policy' },
+  { id: 'details', label: 'Details' },
+  { id: 'confirm', label: 'Confirm' },
+]
+const DEC_STEPS: StepperStep[] = [
+  { id: 'manifest', label: 'Manifest' },
+  { id: 'decrypt', label: 'Decrypt' },
+]
+const UNLOCK_STEPS: StepperStep[] = [
+  { id: 'gate', label: 'Gate' },
+  { id: 'unlock', label: 'Unlock' },
+]
+
+const encStep = ref(0)
+const decStep = ref(0)
+const unlockStep = ref(0)
+
+watch(tab, () => {
+  encStep.value = 0
+  decStep.value = 0
+  unlockStep.value = 0
+})
 
 // Deep-link from access-gate-ui: ?gate=<id> preselects the nft-gate policy + gate.
 // Force manual mode so the pre-set ID renders in the text input immediately, before suggestions load.
@@ -160,6 +184,7 @@ async function performEncrypt(): Promise<void> {
       label: encLabel.value || encFile.value.name,
     }
     status.value = 'Sealed. Keep the manifest below — you need it to decrypt.'
+    encStep.value = 2
   } catch (e) {
     errorMsg.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -285,6 +310,7 @@ async function performDiscover(): Promise<void> {
     status.value = discovered.value.length
       ? `Found ${discovered.value.length} item(s).`
       : 'No sealed content published for this gate.'
+    if (discovered.value.length) unlockStep.value = 1
   } catch (e) {
     errorMsg.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -349,157 +375,214 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
 
     <!-- Encrypt -->
     <section v-show="tab === 'encrypt'" class="card">
-      <label class="field">
-        <span>Policy</span>
-        <select v-model="encType" :disabled="disabled">
-          <option v-for="p in providers" :key="p.type" :value="p.type">
-            {{ p.describe().label }}
-          </option>
-        </select>
-      </label>
-      <p v-if="encProvider" class="muted">{{ encProvider.describe().help }}</p>
+      <UiStepper :steps="ENC_STEPS" v-model="encStep" />
 
-      <template v-if="encProvider">
-        <template v-for="f in encProvider.describe().encryptFields" :key="f.name">
-          <!-- Gate ID field: show a picker when wallet-owned gates are available -->
-          <label v-if="f.name === 'gateId'" class="field">
-            <span>{{ f.label }}<template v-if="f.required"> *</template></span>
-            <span v-if="encGateLoading" class="muted" style="font-size:0.8rem">Loading your gates…</span>
-            <template v-else-if="encGateSuggestions.length && !encGateManual">
-              <select v-model="encValues[f.name]">
-                <option value="">Select a gate…</option>
-                <option v-for="s in encGateSuggestions" :key="s.value" :value="s.value">{{ s.label }}</option>
-              </select>
-              <button class="link" style="margin-top:0.25rem" @click="encGateManual = true; encValues[f.name] = ''">Enter ID manually</button>
-            </template>
-            <template v-else>
-              <input type="text" v-model="encValues[f.name]" :placeholder="f.help" />
-              <button v-if="encGateSuggestions.length" class="link" style="margin-top:0.25rem" @click="encGateManual = false; encValues[f.name] = ''">← Back to picker</button>
-            </template>
-          </label>
-          <!-- All other fields: generic rendering -->
-          <label v-else class="field" :class="{ checkbox: f.kind === 'boolean' }">
-            <span>{{ f.label }}<template v-if="f.required"> *</template></span>
-            <input v-if="f.kind === 'datetime'" type="datetime-local" v-model="encValues[f.name]" />
-            <input v-else-if="f.kind === 'boolean'" type="checkbox" v-model="encValues[f.name]" />
-            <input v-else type="text" v-model="encValues[f.name]" :placeholder="f.help" />
-          </label>
-        </template>
+      <!-- Step 0: Policy -->
+      <template v-if="encStep === 0">
+        <label class="field">
+          <span>Policy</span>
+          <select v-model="encType" :disabled="disabled">
+            <option v-for="p in providers" :key="p.type" :value="p.type">
+              {{ p.describe().label }}
+            </option>
+          </select>
+        </label>
+        <p v-if="encProvider" class="muted">{{ encProvider.describe().help }}</p>
+        <div class="nav-row">
+          <button type="button" class="primary" :disabled="disabled || !encProvider" @click="encStep++">Next</button>
+        </div>
       </template>
 
-      <label class="field">
-        <span>Label (optional)</span>
-        <input type="text" v-model="encLabel" placeholder="A name to recognise this later" />
-      </label>
+      <!-- Step 1: Details (policy fields + file + label) -->
+      <template v-else-if="encStep === 1">
+        <template v-if="encProvider">
+          <template v-for="f in encProvider.describe().encryptFields" :key="f.name">
+            <!-- Gate ID field: show a picker when wallet-owned gates are available -->
+            <label v-if="f.name === 'gateId'" class="field">
+              <span>{{ f.label }}<template v-if="f.required"> *</template></span>
+              <span v-if="encGateLoading" class="muted" style="font-size:0.8rem">Loading your gates…</span>
+              <template v-else-if="encGateSuggestions.length && !encGateManual">
+                <select v-model="encValues[f.name]">
+                  <option value="">Select a gate…</option>
+                  <option v-for="s in encGateSuggestions" :key="s.value" :value="s.value">{{ s.label }}</option>
+                </select>
+                <button class="link" style="margin-top:0.25rem" @click="encGateManual = true; encValues[f.name] = ''">Enter ID manually</button>
+              </template>
+              <template v-else>
+                <input type="text" v-model="encValues[f.name]" :placeholder="f.help" />
+                <button v-if="encGateSuggestions.length" class="link" style="margin-top:0.25rem" @click="encGateManual = false; encValues[f.name] = ''">← Back to picker</button>
+              </template>
+            </label>
+            <!-- All other fields: generic rendering -->
+            <label v-else class="field" :class="{ checkbox: f.kind === 'boolean' }">
+              <span>{{ f.label }}<template v-if="f.required"> *</template></span>
+              <input v-if="f.kind === 'datetime'" type="datetime-local" v-model="encValues[f.name]" />
+              <input v-else-if="f.kind === 'boolean'" type="checkbox" v-model="encValues[f.name]" />
+              <input v-else type="text" v-model="encValues[f.name]" :placeholder="f.help" />
+            </label>
+          </template>
+        </template>
 
-      <label class="field">
-        <span>File</span>
-        <input type="file" @change="onEncFile" />
-      </label>
+        <label class="field">
+          <span>Label (optional)</span>
+          <input type="text" v-model="encLabel" placeholder="A name to recognise this later" />
+        </label>
 
-      <button class="primary" :disabled="busy || disabled" @click="performEncrypt">
-        {{ busy ? 'Working…' : 'Encrypt & store' }}
-      </button>
+        <label class="field">
+          <span>File</span>
+          <input type="file" @change="onEncFile" />
+        </label>
 
-      <div v-if="manifest" style="margin-top:1rem">
-        <p class="muted">Manifest — save this; it's required to decrypt (it holds no secrets):</p>
-        <pre class="manifest">{{ JSON.stringify(manifest, null, 2) }}</pre>
-        <button class="link" @click="downloadManifest">Download manifest</button>
-
-        <div v-if="manifest.policyType === 'nft-gate'" style="margin-top:0.75rem">
-          <p class="muted">
-            Optional: publish an on-chain pointer so this gate's pass-holders can discover and unlock
-            this content in the Unlock tab (no need to share the manifest).
-          </p>
-          <button class="primary" :disabled="busy || !account" @click="performPublish">
-            {{ busy ? 'Working…' : 'Publish discovery pointer' }}
-          </button>
-          <span v-if="!account" class="muted"> — connect a wallet first.</span>
-          <p v-if="publishDigest" class="muted">Published in tx {{ publishDigest.slice(0, 10) }}…</p>
+        <div class="nav-row">
+          <button type="button" class="link" @click="encStep--">Back</button>
+          <button type="button" class="primary" :disabled="disabled || !encFile" @click="encStep++">Next</button>
         </div>
-      </div>
+      </template>
+
+      <!-- Step 2: Confirm + encrypt -->
+      <template v-else-if="encStep === 2">
+        <div v-if="!manifest" class="confirm-summary">
+          <p class="muted">Policy: <strong>{{ encProvider?.describe().label }}</strong></p>
+          <p class="muted">File: <strong>{{ encFile?.name ?? '—' }}</strong></p>
+          <p v-if="encLabel" class="muted">Label: <strong>{{ encLabel }}</strong></p>
+        </div>
+
+        <button v-if="!manifest" class="primary" :disabled="busy || disabled" @click="performEncrypt">
+          {{ busy ? 'Working…' : 'Encrypt & store' }}
+        </button>
+
+        <div v-if="manifest" style="margin-top:1rem">
+          <p class="muted">Manifest — save this; it's required to decrypt (it holds no secrets):</p>
+          <pre class="manifest">{{ JSON.stringify(manifest, null, 2) }}</pre>
+          <button class="link" @click="downloadManifest">Download manifest</button>
+
+          <div v-if="manifest.policyType === 'nft-gate'" style="margin-top:0.75rem">
+            <p class="muted">
+              Optional: publish an on-chain pointer so this gate's pass-holders can discover and unlock
+              this content in the Unlock tab (no need to share the manifest).
+            </p>
+            <button class="primary" :disabled="busy || !account" @click="performPublish">
+              {{ busy ? 'Working…' : 'Publish discovery pointer' }}
+            </button>
+            <span v-if="!account" class="muted"> — connect a wallet first.</span>
+            <p v-if="publishDigest" class="muted">Published in tx {{ publishDigest.slice(0, 10) }}…</p>
+          </div>
+        </div>
+
+        <div v-if="!manifest" class="nav-row">
+          <button type="button" class="link" @click="encStep--">Back</button>
+        </div>
+      </template>
     </section>
 
     <!-- Unlock -->
     <section v-show="tab === 'unlock'" class="card">
-      <p class="muted">
-        Discover content sealed to an access gate and decrypt it with a pass you hold.
-      </p>
-      <label class="field">
-        <span>Access gate ID</span>
-        <span v-if="unlockGateLoading" class="muted" style="font-size:0.8rem">Loading your gates…</span>
-        <template v-else-if="unlockGateSuggestions.length && !unlockGateManual">
-          <select v-model="unlockGateId">
-            <option value="">Select a gate…</option>
-            <option v-for="s in unlockGateSuggestions" :key="s.value" :value="s.value">{{ s.label }}</option>
-          </select>
-          <button class="link" style="margin-top:0.25rem" @click="unlockGateManual = true; unlockGateId = ''">Enter ID manually</button>
-        </template>
-        <template v-else>
-          <input type="text" v-model="unlockGateId" placeholder="0x… gate object id" />
-          <button v-if="unlockGateSuggestions.length" class="link" style="margin-top:0.25rem" @click="unlockGateManual = false; unlockGateId = ''">← Back to picker</button>
-        </template>
-      </label>
-      <button class="primary" :disabled="busy || !unlockGateId" @click="performDiscover">
-        {{ busy ? 'Working…' : 'Find sealed content' }}
-      </button>
+      <UiStepper :steps="UNLOCK_STEPS" v-model="unlockStep" />
 
-      <div v-if="discovered.length" style="margin-top:1rem">
+      <!-- Step 0: Gate selector -->
+      <template v-if="unlockStep === 0">
+        <p class="muted">
+          Discover content sealed to an access gate and decrypt it with a pass you hold.
+        </p>
         <label class="field">
-          <span>Your pass NFT ID *</span>
-          <input type="text" v-model="unlockNftId" placeholder="0x… your AccessNFT for this gate" />
+          <span>Access gate ID</span>
+          <span v-if="unlockGateLoading" class="muted" style="font-size:0.8rem">Loading your gates…</span>
+          <template v-else-if="unlockGateSuggestions.length && !unlockGateManual">
+            <select v-model="unlockGateId">
+              <option value="">Select a gate…</option>
+              <option v-for="s in unlockGateSuggestions" :key="s.value" :value="s.value">{{ s.label }}</option>
+            </select>
+            <button class="link" style="margin-top:0.25rem" @click="unlockGateManual = true; unlockGateId = ''">Enter ID manually</button>
+          </template>
+          <template v-else>
+            <input type="text" v-model="unlockGateId" placeholder="0x… gate object id" />
+            <button v-if="unlockGateSuggestions.length" class="link" style="margin-top:0.25rem" @click="unlockGateManual = false; unlockGateId = ''">← Back to picker</button>
+          </template>
         </label>
-        <label class="field checkbox">
-          <input type="checkbox" v-model="unlockSoulbound" />
-          <span>Pass is soulbound</span>
-        </label>
+        <button class="primary" :disabled="busy || !unlockGateId" @click="performDiscover">
+          {{ busy ? 'Working…' : 'Find sealed content' }}
+        </button>
+      </template>
 
-        <div v-for="item in discovered" :key="item.contentId" class="card" style="margin:0.5rem 0">
-          <strong>{{ item.label || '(untitled)' }}</strong>
-          <p class="muted" style="word-break:break-all">blob {{ item.blobId }}</p>
-          <button class="primary" :disabled="busy || !account || !unlockNftId" @click="performUnlock(item)">
-            Unlock &amp; download
-          </button>
-          <span v-if="!account" class="muted"> — connect a wallet to decrypt.</span>
+      <!-- Step 1: Results + unlock -->
+      <template v-else-if="unlockStep === 1">
+        <div v-if="!discovered.length" class="muted">No sealed content found for this gate.</div>
+
+        <div v-if="discovered.length">
+          <label class="field">
+            <span>Your pass NFT ID *</span>
+            <input type="text" v-model="unlockNftId" placeholder="0x… your AccessNFT for this gate" />
+          </label>
+          <label class="field checkbox">
+            <input type="checkbox" v-model="unlockSoulbound" />
+            <span>Pass is soulbound</span>
+          </label>
+
+          <div v-for="item in discovered" :key="item.contentId" class="card" style="margin:0.5rem 0">
+            <strong>{{ item.label || '(untitled)' }}</strong>
+            <p class="muted" style="word-break:break-all">blob {{ item.blobId }}</p>
+            <button class="primary" :disabled="busy || !account || !unlockNftId" @click="performUnlock(item)">
+              Unlock &amp; download
+            </button>
+            <span v-if="!account" class="muted"> — connect a wallet to decrypt.</span>
+          </div>
         </div>
-      </div>
+
+        <div class="nav-row">
+          <button type="button" class="link" @click="unlockStep--; discovered = []">Back</button>
+        </div>
+      </template>
     </section>
 
     <!-- Decrypt -->
     <section v-show="tab === 'decrypt'" class="card">
-      <label class="field">
-        <span>Manifest (paste JSON or upload)</span>
-        <textarea v-model="decManifestText" placeholder='{ "policyType": "...", "id": "...", "blobId": "..." }'></textarea>
-      </label>
-      <input type="file" accept="application/json,.json" @change="onManifestFile" />
+      <UiStepper :steps="DEC_STEPS" v-model="decStep" />
 
-      <template v-if="decProvider">
-        <p class="muted" style="margin-top:0.75rem">
-          Policy: {{ decProvider.describe().label }} — {{ decProvider.describe().help }}
-        </p>
-        <label
-          v-for="f in decProvider.describe().decryptFields"
-          :key="f.name"
-          class="field"
-          :class="{ checkbox: f.kind === 'boolean' }"
-        >
-          <span>{{ f.label }}<template v-if="f.required"> *</template></span>
-          <input v-if="f.kind === 'datetime'" type="datetime-local" v-model="decValues[f.name]" />
-          <input v-else-if="f.kind === 'boolean'" type="checkbox" v-model="decValues[f.name]" />
-          <input
-            v-else
-            type="text"
-            v-model="decValues[f.name]"
-            :placeholder="decManifest?.params?.[f.name] != null ? String(decManifest.params[f.name]) : f.help"
-          />
+      <!-- Step 0: Manifest input -->
+      <template v-if="decStep === 0">
+        <label class="field">
+          <span>Manifest (paste JSON or upload)</span>
+          <textarea v-model="decManifestText" placeholder='{ "policyType": "...", "id": "...", "blobId": "..." }'></textarea>
         </label>
+        <input type="file" accept="application/json,.json" @change="onManifestFile" />
+        <p v-if="decManifestError" class="muted">{{ decManifestError }}</p>
+        <p v-else-if="decManifestText.trim() && !decManifest" class="muted">Unrecognised or invalid manifest.</p>
+        <div class="nav-row">
+          <button type="button" class="primary" :disabled="!decManifest" @click="decStep++">Next</button>
+        </div>
       </template>
-      <p v-else-if="decManifestError" class="muted">{{ decManifestError }}</p>
-      <p v-else-if="decManifestText.trim()" class="muted">Unrecognised or invalid manifest.</p>
 
-      <button class="primary" :disabled="busy || !decProvider" @click="performDecrypt">
-        {{ busy ? 'Working…' : 'Decrypt' }}
-      </button>
+      <!-- Step 1: Policy fields + decrypt -->
+      <template v-else-if="decStep === 1">
+        <template v-if="decProvider">
+          <p class="muted" style="margin-top:0.75rem">
+            Policy: {{ decProvider.describe().label }} — {{ decProvider.describe().help }}
+          </p>
+          <label
+            v-for="f in decProvider.describe().decryptFields"
+            :key="f.name"
+            class="field"
+            :class="{ checkbox: f.kind === 'boolean' }"
+          >
+            <span>{{ f.label }}<template v-if="f.required"> *</template></span>
+            <input v-if="f.kind === 'datetime'" type="datetime-local" v-model="decValues[f.name]" />
+            <input v-else-if="f.kind === 'boolean'" type="checkbox" v-model="decValues[f.name]" />
+            <input
+              v-else
+              type="text"
+              v-model="decValues[f.name]"
+              :placeholder="decManifest?.params?.[f.name] != null ? String(decManifest.params[f.name]) : f.help"
+            />
+          </label>
+        </template>
+
+        <div class="nav-row">
+          <button type="button" class="link" @click="decStep--">Back</button>
+          <button class="primary" :disabled="busy || !decProvider" @click="performDecrypt">
+            {{ busy ? 'Working…' : 'Decrypt' }}
+          </button>
+        </div>
+      </template>
     </section>
 
     <p v-if="status" class="status muted">{{ status }}</p>
@@ -592,6 +675,22 @@ pre.manifest {
   padding: 0.7rem;
   overflow-x: auto;
   font-size: 0.75rem;
+}
+
+.confirm-summary {
+  padding: 0.6rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.75rem;
+}
+
+.nav-row {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 0.75rem;
 }
 
 .muted { color: var(--muted, #a89b96); font-size: 0.85rem; }
