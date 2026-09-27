@@ -8,7 +8,7 @@
 // global stylesheet (which restyles body / #app / bare inputs). The standalone app keeps those
 // globals via main.ts → styles.css.
 import { computed, onMounted, ref, watch } from 'vue'
-import { AppTabNav, UiStepper, type AppTab, type StepperStep } from '@meddleware/ui'
+import { AppTabNav, UiStepper, UiToolIntro, type AppTab, type StepperStep } from '@meddleware/ui'
 import { Transaction } from '@mysten/sui/transactions'
 import {
   buildPublishSealedContentTx,
@@ -352,8 +352,8 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
 </script>
 
 <template>
-  <div class="page">
-    <p class="muted">Client-side encrypted, access-gated storage on Walrus + Sui.</p>
+  
+    <UiToolIntro>Client-side encrypted, access-gated storage on Walrus + Sui.</UiToolIntro>
 
     <div v-if="!SEAL_CONFIGURED" class="notice notice--warn">
       <template v-if="NETWORK === 'mainnet'">
@@ -592,16 +592,9 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
       servers are unreachable, decryption pauses — storage and retrieval are unaffected.
     </p>
     </WalletGuard>
-  </div>
 </template>
 
 <style scoped>
-.page {
-  max-width: 780px;
-  margin: 0 auto;
-  flex: 1;
-}
-
 .notice {
   border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
   border-radius: 10px;
