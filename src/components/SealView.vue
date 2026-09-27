@@ -544,7 +544,10 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
           <span>Manifest (paste JSON or upload)</span>
           <textarea v-model="decManifestText" placeholder='{ "policyType": "...", "id": "...", "blobId": "..." }'></textarea>
         </label>
-        <input type="file" accept="application/json,.json" @change="onManifestFile" />
+        <label class="field">
+          <span>Or upload a manifest file</span>
+          <input type="file" accept="application/json,.json" @change="onManifestFile" />
+        </label>
         <p v-if="decManifestError" class="muted">{{ decManifestError }}</p>
         <p v-else-if="decManifestText.trim() && !decManifest" class="muted">Unrecognised or invalid manifest.</p>
         <div class="nav-row">
