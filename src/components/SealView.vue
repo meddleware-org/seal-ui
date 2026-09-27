@@ -8,7 +8,7 @@
 // global stylesheet (which restyles body / #app / bare inputs). The standalone app keeps those
 // globals via main.ts → styles.css.
 import { computed, onMounted, ref, watch } from 'vue'
-import { AppTabNav, UiStepper, UiToolIntro, type AppTab, type StepperStep } from '@meddleware/ui'
+import { AppTabNav, UiStepper, UiTabPanel, UiToolIntro, type AppTab, type StepperStep } from '@meddleware/ui'
 import { Transaction } from '@mysten/sui/transactions'
 import {
   buildPublishSealedContentTx,
@@ -111,6 +111,13 @@ async function fetchGateSuggestions(provider: SealPolicyProvider | null): Promis
 const encType = ref(providers[0]?.type ?? '')
 const encProvider = computed(() => providers.find((p) => p.type === encType.value) ?? null)
 const encValues = ref<Record<string, string | boolean>>({})
+
+/** One input per policy field; its type follows the field kind (v-model handles each type). */
+function fieldInputType(kind: string): string {
+  if (kind === 'datetime') return 'datetime-local'
+  if (kind === 'boolean') return 'checkbox'
+  return 'text'
+}
 const encFile = ref<File | null>(null)
 const encLabel = ref('')
 const manifest = ref<SealedManifest | null>(null)
@@ -352,10 +359,10 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
 </script>
 
 <template>
-  
+
     <UiToolIntro>Client-side encrypted, access-gated storage on Walrus + Sui.</UiToolIntro>
 
-    <div v-if="!SEAL_CONFIGURED" class="notice notice--warn">
+    <p v-if="!SEAL_CONFIGURED" class="notice notice--warn">
       <template v-if="NETWORK === 'mainnet'">
         Seal is not configured for mainnet. Set
         <code>VITE_SEAL_PACKAGE_ID_MAINNET</code>,
@@ -366,15 +373,15 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
         This deployment has no Seal policy package or key-server committee configured
         (<code>VITE_SEAL_PACKAGE_ID_*</code> / <code>VITE_SEAL_SERVER_OBJECT_IDS_*</code>).
       </template>
-    </div>
+    </p>
 
     <WalletGuard message="Connect a Sui wallet to encrypt and decrypt sealed content.">
-    <AppTabNav :tabs="TABS" v-model="tab" style="margin: 1rem 0" />
+    <AppTabNav v-model="tab" :tabs="TABS" id-prefix="seal" aria-label="Sealed storage" class="seal-tabs" />
 
-    <div v-if="errorMsg" class="notice notice--error">{{ errorMsg }}</div>
+    <p v-if="errorMsg" class="notice notice--error" role="alert">{{ errorMsg }}</p>
 
     <!-- Encrypt -->
-    <section v-show="tab === 'encrypt'" class="card">
+    <UiTabPanel v-show="tab === 'encrypt'" id-prefix="seal" tab="encrypt" class="card">
       <UiStepper :steps="ENC_STEPS" v-model="encStep" />
 
       <!-- Step 0: Policy -->
@@ -398,27 +405,33 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
         <template v-if="encProvider">
           <template v-for="f in encProvider.describe().encryptFields" :key="f.name">
             <!-- Gate ID field: show a picker when wallet-owned gates are available -->
-            <label v-if="f.name === 'gateId'" class="field">
-              <span>{{ f.label }}<template v-if="f.required"> *</template></span>
-              <span v-if="encGateLoading" class="muted" style="font-size:0.8rem">Loading your gates…</span>
-              <template v-else-if="encGateSuggestions.length && !encGateManual">
+            <!-- The picker/manual toggle is a sibling of the label: a label may only contain its own control. -->
+            <template v-if="f.name === 'gateId'">
+              <label v-if="!encGateLoading && encGateSuggestions.length && !encGateManual" class="field">
+                <span>{{ f.label }}<template v-if="f.required"> *</template></span>
                 <select v-model="encValues[f.name]">
                   <option value="">Select a gate…</option>
                   <option v-for="s in encGateSuggestions" :key="s.value" :value="s.value">{{ s.label }}</option>
                 </select>
-                <button class="link" style="margin-top:0.25rem" @click="encGateManual = true; encValues[f.name] = ''">Enter ID manually</button>
+              </label>
+              <label v-else class="field">
+                <span>{{ f.label }}<template v-if="f.required"> *</template></span>
+                <span v-if="encGateLoading" class="muted muted--sm">Loading your gates…</span>
+                <input v-else v-model="encValues[f.name]" type="text" :placeholder="f.help" />
+              </label>
+              <template v-if="!encGateLoading && encGateSuggestions.length">
+                <button v-if="!encGateManual" type="button" class="link link--spaced" @click="encGateManual = true; encValues[f.name] = ''">Enter ID manually</button>
+                <button v-else type="button" class="link link--spaced" @click="encGateManual = false; encValues[f.name] = ''">← Back to picker</button>
               </template>
-              <template v-else>
-                <input type="text" v-model="encValues[f.name]" :placeholder="f.help" />
-                <button v-if="encGateSuggestions.length" class="link" style="margin-top:0.25rem" @click="encGateManual = false; encValues[f.name] = ''">← Back to picker</button>
-              </template>
-            </label>
+            </template>
             <!-- All other fields: generic rendering -->
             <label v-else class="field" :class="{ checkbox: f.kind === 'boolean' }">
               <span>{{ f.label }}<template v-if="f.required"> *</template></span>
-              <input v-if="f.kind === 'datetime'" type="datetime-local" v-model="encValues[f.name]" />
-              <input v-else-if="f.kind === 'boolean'" type="checkbox" v-model="encValues[f.name]" />
-              <input v-else type="text" v-model="encValues[f.name]" :placeholder="f.help" />
+              <input
+                v-model="encValues[f.name]"
+                :type="fieldInputType(f.kind)"
+                :placeholder="fieldInputType(f.kind) === 'text' ? f.help : undefined"
+              />
             </label>
           </template>
         </template>
@@ -447,36 +460,38 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
           <p v-if="encLabel" class="muted">Label: <strong>{{ encLabel }}</strong></p>
         </div>
 
-        <button v-if="!manifest" class="primary" :disabled="busy || disabled" @click="performEncrypt">
+        <button type="button" v-if="!manifest" class="primary" :disabled="busy || disabled" @click="performEncrypt">
           {{ busy ? 'Working…' : 'Encrypt & store' }}
         </button>
 
-        <div v-if="manifest" style="margin-top:1rem">
-          <p class="muted">Manifest — save this; it's required to decrypt (it holds no secrets):</p>
-          <pre class="manifest">{{ JSON.stringify(manifest, null, 2) }}</pre>
-          <button class="link" @click="downloadManifest">Download manifest</button>
+        <template v-if="manifest">
+          <figure class="enc-result">
+            <figcaption class="muted">Manifest — save this; it's required to decrypt (it holds no secrets):</figcaption>
+            <pre class="manifest">{{ JSON.stringify(manifest, null, 2) }}</pre>
+          </figure>
+          <button type="button" class="link" @click="downloadManifest">Download manifest</button>
 
-          <div v-if="manifest.policyType === 'nft-gate'" style="margin-top:0.75rem">
+          <section v-if="manifest.policyType === 'nft-gate'" class="enc-publish">
             <p class="muted">
               Optional: publish an on-chain pointer so this gate's pass-holders can discover and unlock
               this content in the Unlock tab (no need to share the manifest).
             </p>
-            <button class="primary" :disabled="busy || !account" @click="performPublish">
+            <button type="button" class="primary" :disabled="busy || !account" @click="performPublish">
               {{ busy ? 'Working…' : 'Publish discovery pointer' }}
             </button>
             <span v-if="!account" class="muted"> — connect a wallet first.</span>
             <p v-if="publishDigest" class="muted">Published in tx {{ publishDigest.slice(0, 10) }}…</p>
-          </div>
-        </div>
+          </section>
+        </template>
 
         <div v-if="!manifest" class="nav-row">
           <button type="button" class="link" @click="encStep--">Back</button>
         </div>
       </template>
-    </section>
+    </UiTabPanel>
 
     <!-- Unlock -->
-    <section v-show="tab === 'unlock'" class="card">
+    <UiTabPanel v-show="tab === 'unlock'" id-prefix="seal" tab="unlock" class="card">
       <UiStepper :steps="UNLOCK_STEPS" v-model="unlockStep" />
 
       <!-- Step 0: Gate selector -->
@@ -484,22 +499,23 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
         <p class="muted">
           Discover content sealed to an access gate and decrypt it with a pass you hold.
         </p>
-        <label class="field">
+        <label v-if="!unlockGateLoading && unlockGateSuggestions.length && !unlockGateManual" class="field">
           <span>Access gate ID</span>
-          <span v-if="unlockGateLoading" class="muted" style="font-size:0.8rem">Loading your gates…</span>
-          <template v-else-if="unlockGateSuggestions.length && !unlockGateManual">
-            <select v-model="unlockGateId">
-              <option value="">Select a gate…</option>
-              <option v-for="s in unlockGateSuggestions" :key="s.value" :value="s.value">{{ s.label }}</option>
-            </select>
-            <button class="link" style="margin-top:0.25rem" @click="unlockGateManual = true; unlockGateId = ''">Enter ID manually</button>
-          </template>
-          <template v-else>
-            <input type="text" v-model="unlockGateId" placeholder="0x… gate object id" />
-            <button v-if="unlockGateSuggestions.length" class="link" style="margin-top:0.25rem" @click="unlockGateManual = false; unlockGateId = ''">← Back to picker</button>
-          </template>
+          <select v-model="unlockGateId">
+            <option value="">Select a gate…</option>
+            <option v-for="s in unlockGateSuggestions" :key="s.value" :value="s.value">{{ s.label }}</option>
+          </select>
         </label>
-        <button class="primary" :disabled="busy || !unlockGateId" @click="performDiscover">
+        <label v-else class="field">
+          <span>Access gate ID</span>
+          <span v-if="unlockGateLoading" class="muted muted--sm">Loading your gates…</span>
+          <input v-else v-model="unlockGateId" type="text" placeholder="0x… gate object id" />
+        </label>
+        <template v-if="!unlockGateLoading && unlockGateSuggestions.length">
+          <button v-if="!unlockGateManual" type="button" class="link link--spaced" @click="unlockGateManual = true; unlockGateId = ''">Enter ID manually</button>
+          <button v-else type="button" class="link link--spaced" @click="unlockGateManual = false; unlockGateId = ''">← Back to picker</button>
+        </template>
+        <button type="button" class="primary" :disabled="busy || !unlockGateId" @click="performDiscover">
           {{ busy ? 'Working…' : 'Find sealed content' }}
         </button>
       </template>
@@ -518,24 +534,24 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
             <span>Pass is soulbound</span>
           </label>
 
-          <div v-for="item in discovered" :key="item.contentId" class="card" style="margin:0.5rem 0">
-            <strong>{{ item.label || '(untitled)' }}</strong>
-            <p class="muted" style="word-break:break-all">blob {{ item.blobId }}</p>
-            <button class="primary" :disabled="busy || !account || !unlockNftId" @click="performUnlock(item)">
+          <article v-for="item in discovered" :key="item.contentId" class="card discovered">
+            <h3 class="discovered__title">{{ item.label || '(untitled)' }}</h3>
+            <p class="muted discovered__blob">blob {{ item.blobId }}</p>
+            <button type="button" class="primary" :disabled="busy || !account || !unlockNftId" @click="performUnlock(item)">
               Unlock &amp; download
             </button>
             <span v-if="!account" class="muted"> — connect a wallet to decrypt.</span>
-          </div>
+          </article>
         </div>
 
         <div class="nav-row">
           <button type="button" class="link" @click="unlockStep--; discovered = []">Back</button>
         </div>
       </template>
-    </section>
+    </UiTabPanel>
 
     <!-- Decrypt -->
-    <section v-show="tab === 'decrypt'" class="card">
+    <UiTabPanel v-show="tab === 'decrypt'" id-prefix="seal" tab="decrypt" class="card">
       <UiStepper :steps="DEC_STEPS" v-model="decStep" />
 
       <!-- Step 0: Manifest input -->
@@ -558,7 +574,7 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
       <!-- Step 1: Policy fields + decrypt -->
       <template v-else-if="decStep === 1">
         <template v-if="decProvider">
-          <p class="muted" style="margin-top:0.75rem">
+          <p class="muted muted--spaced">
             Policy: {{ decProvider.describe().label }} — {{ decProvider.describe().help }}
           </p>
           <label
@@ -568,25 +584,23 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
             :class="{ checkbox: f.kind === 'boolean' }"
           >
             <span>{{ f.label }}<template v-if="f.required"> *</template></span>
-            <input v-if="f.kind === 'datetime'" type="datetime-local" v-model="decValues[f.name]" />
-            <input v-else-if="f.kind === 'boolean'" type="checkbox" v-model="decValues[f.name]" />
             <input
-              v-else
-              type="text"
               v-model="decValues[f.name]"
-              :placeholder="decManifest?.params?.[f.name] != null ? String(decManifest.params[f.name]) : f.help"
+              :type="fieldInputType(f.kind)"
+              :placeholder="fieldInputType(f.kind) !== 'text' ? undefined
+                : decManifest?.params?.[f.name] != null ? String(decManifest.params[f.name]) : f.help"
             />
           </label>
         </template>
 
         <div class="nav-row">
           <button type="button" class="link" @click="decStep--">Back</button>
-          <button class="primary" :disabled="busy || !decProvider" @click="performDecrypt">
+          <button type="button" class="primary" :disabled="busy || !decProvider" @click="performDecrypt">
             {{ busy ? 'Working…' : 'Decrypt' }}
           </button>
         </div>
       </template>
-    </section>
+    </UiTabPanel>
 
     <p v-if="status" class="status muted">{{ status }}</p>
 
@@ -690,6 +704,15 @@ pre.manifest {
 }
 
 .muted { color: var(--muted, #a89b96); font-size: 0.85rem; }
+.muted--sm { font-size: 0.8rem; }
+.muted--spaced { margin-top: 0.75rem; }
+.link--spaced { margin-top: 0.25rem; }
+.seal-tabs { margin: 1rem 0; }
+.enc-result { margin: 1rem 0 0; }
+.enc-publish { margin-top: 0.75rem; }
+.discovered { margin: 0.5rem 0; }
+.discovered__title { margin: 0; font-size: 1rem; }
+.discovered__blob { word-break: break-all; }
 .status { font-size: 0.85rem; margin-top: 0.5rem; }
 .disclaimer { margin-top: 2rem; }
 </style>

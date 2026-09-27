@@ -37,7 +37,8 @@
     "test:watch": "vitest",
     "lint:css": "stylelint \"src/**/*.{css,vue}\"",
     "lint:js": "eslint .",
-    "lint": "npm run lint:css && npm run lint:js"
+    "lint": "npm run lint:css && npm run lint:js && npm run lint:html",
+    "lint:html": "html-validate \"src/**/*.vue\""
   },
   "publishConfig": {
     "access": "public"
@@ -60,6 +61,8 @@
     "eslint": "^10.11.0",
     "eslint-plugin-vue": "^10.11.1",
     "eslint-plugin-vuejs-accessibility": "^2.6.0",
+    "html-validate": "^11.16.1",
+    "html-validate-vue": "^9.3.1",
     "jiti": "^2.7.0",
     "jsdom": "^30.1.0",
     "postcss": "^8.4.49",
