@@ -22,7 +22,9 @@ const DEV_URL  = import.meta.env.VITE_DEV_URL  || 'https://dev.meddleware.co.uk/
       </template>
     </AppHeader>
 
-    <SealView />
+    <div class="app__content">
+      <SealView />
+    </div>
 
     <AppFooter :docs-url="DOCS_URL" :dev-url="DEV_URL" />
   </div>
@@ -33,6 +35,17 @@ const DEV_URL  = import.meta.env.VITE_DEV_URL  || 'https://dev.meddleware.co.uk/
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* Centre the tool at the shared tool-content width when running standalone. The dashboard
+   supplies its own width container, so this lives in the shell, not SealView. */
+.app__content {
+  flex: 1;
+  width: 100%;
+  max-width: var(--mw-tool-content-max);
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 1.5rem 1.25rem 4rem;
 }
 
 .badge {
