@@ -27,7 +27,7 @@ export const SEAL_PACKAGE_ID: string =
   netEnv('VITE_SEAL_PACKAGE_ID') ||
   // Meddleware's canonical testnet deployment — override with VITE_SEAL_PACKAGE_ID_TESTNET
   (NETWORK === 'testnet'
-    ? '0x9f0563bfe42fbd29932cd280cc47efe17f5339b4dc569eb110114665eecc231e'
+    ? '0x42cc181f851ef702c1fddc9b925553f03b71784edff49d80fbc260055f86d612'
     : '')
 
 /**
@@ -102,7 +102,7 @@ export const WALRUS_EPOCHS = Number(env.VITE_WALRUS_EPOCHS || '5')
  * Kept in sync with access-gate-ui/src/constants.ts (same deployment).
  */
 export const ACCESS_GATE_PACKAGE_ID: Record<Network, string> = {
-  testnet: '0x0bedd0b27d993d3292ca6a5315f7562de8bc0ff3752b445b4c53252c76f2d20d',
+  testnet: '0x1a81ca177db039585e575beeeee4759466e55910e936a6733e38dbb65025eea4',
   mainnet: '',
 }
 
