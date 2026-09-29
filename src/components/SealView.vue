@@ -381,7 +381,7 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
     <!-- The tab list and every panel always render (each tab controls a live panel); the wallet
          prompt replaces only a panel's content until a wallet is connected. Panels stay mounted
          (v-show) so each tab keeps its state. -->
-    <AppTabNav v-model="tab" :tabs="TABS" id-prefix="seal" aria-label="Sealed storage" class="seal-tabs" />
+    <AppTabNav v-model="tab" :tabs="TABS" id-prefix="seal" aria-label="Sealed storage" all-panels class="seal-tabs" />
 
     <p v-if="errorMsg" class="notice notice--error" role="alert">{{ errorMsg }}</p>
 
