@@ -28,6 +28,9 @@ import { NETWORK, SEAL_CONFIGURED, SEAL_PACKAGE_ID } from '../config.js'
 const { account, signPersonalMessage, signAndExecute } = useWallet()
 
 const providers = registry.list() as SealPolicyProvider[]
+
+/** Shown inside each tab panel until a wallet is connected. */
+const GUARD_MESSAGE = 'Connect a Sui wallet to encrypt and decrypt sealed content.'
 const disabled = computed(() => !SEAL_CONFIGURED)
 
 const TABS: AppTab[] = [
@@ -375,13 +378,16 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
       </template>
     </p>
 
-    <WalletGuard message="Connect a Sui wallet to encrypt and decrypt sealed content.">
+    <!-- The tab list and every panel always render (each tab controls a live panel); the wallet
+         prompt replaces only a panel's content until a wallet is connected. Panels stay mounted
+         (v-show) so each tab keeps its state. -->
     <AppTabNav v-model="tab" :tabs="TABS" id-prefix="seal" aria-label="Sealed storage" class="seal-tabs" />
 
     <p v-if="errorMsg" class="notice notice--error" role="alert">{{ errorMsg }}</p>
 
     <!-- Encrypt -->
     <UiTabPanel v-show="tab === 'encrypt'" id-prefix="seal" tab="encrypt" class="card">
+    <WalletGuard :message="GUARD_MESSAGE">
       <UiStepper :steps="ENC_STEPS" v-model="encStep" />
 
       <!-- Step 0: Policy -->
@@ -488,10 +494,12 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
           <button type="button" class="link" @click="encStep--">Back</button>
         </div>
       </template>
+    </WalletGuard>
     </UiTabPanel>
 
     <!-- Unlock -->
     <UiTabPanel v-show="tab === 'unlock'" id-prefix="seal" tab="unlock" class="card">
+    <WalletGuard :message="GUARD_MESSAGE">
       <UiStepper :steps="UNLOCK_STEPS" v-model="unlockStep" />
 
       <!-- Step 0: Gate selector -->
@@ -548,10 +556,12 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
           <button type="button" class="link" @click="unlockStep--; discovered = []">Back</button>
         </div>
       </template>
+    </WalletGuard>
     </UiTabPanel>
 
     <!-- Decrypt -->
     <UiTabPanel v-show="tab === 'decrypt'" id-prefix="seal" tab="decrypt" class="card">
+    <WalletGuard :message="GUARD_MESSAGE">
       <UiStepper :steps="DEC_STEPS" v-model="decStep" />
 
       <!-- Step 0: Manifest input -->
@@ -600,6 +610,7 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
           </button>
         </div>
       </template>
+    </WalletGuard>
     </UiTabPanel>
 
     <p v-if="status" class="status muted">{{ status }}</p>
@@ -608,7 +619,6 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
       Decryption keys are released by a threshold committee of independent key servers. If enough
       servers are unreachable, decryption pauses — storage and retrieval are unaffected.
     </p>
-    </WalletGuard>
 </template>
 
 <style scoped>

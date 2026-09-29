@@ -14,7 +14,7 @@ const DEV_URL  = import.meta.env.VITE_DEV_URL  || 'https://dev.meddleware.co.uk/
   <div class="app">
     <AppHeader variant="dark">
       <template #brand>
-        <span>🔒 Sealed Storage</span>
+        <h1 class="brand-title">🔒 Sealed Storage</h1>
       </template>
       <template #actions>
         <span class="badge">{{ NETWORK }}</span>
@@ -22,9 +22,9 @@ const DEV_URL  = import.meta.env.VITE_DEV_URL  || 'https://dev.meddleware.co.uk/
       </template>
     </AppHeader>
 
-    <div class="app__content">
+    <main class="app__content">
       <SealView />
-    </div>
+    </main>
 
     <AppFooter :docs-url="DOCS_URL" :dev-url="DEV_URL" />
   </div>
@@ -55,5 +55,11 @@ const DEV_URL  = import.meta.env.VITE_DEV_URL  || 'https://dev.meddleware.co.uk/
   background: var(--surface);
   color: var(--muted);
   border: 1px solid var(--border);
+}
+
+/* The app title is the page's h1; keep the header's own type styles. */
+.brand-title {
+  font: inherit;
+  margin: 0;
 }
 </style>
