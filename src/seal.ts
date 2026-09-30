@@ -29,3 +29,11 @@ export async function getSealController(): Promise<SealController> {
   }
   return controller
 }
+
+/**
+ * Drop every cached SessionKey (wallet disconnected or switched account). A no-op before the
+ * controller has been loaded, so calling it never pulls `@mysten/seal` into the bundle.
+ */
+export function clearSealSessions(): void {
+  controller?.clearSession()
+}

@@ -20,7 +20,7 @@ import {
 import { checkManifestForNetwork } from '../manifest-guard.js'
 import { WalletGuard } from '@meddleware/wallet-adapter'
 import { useWallet, getSuiClient } from '../wallet.js'
-import { registry, getSealController } from '../seal.js'
+import { registry, getSealController, clearSealSessions } from '../seal.js'
 import { storeBlob, readBlob } from '../walrus.js'
 import { discoverSealedContent } from '../sealed-content.js'
 import { NETWORK, SEAL_CONFIGURED, SEAL_PACKAGE_ID } from '../config.js'
@@ -86,6 +86,15 @@ function coerce(kind: string, raw: string | boolean): unknown {
   return String(raw)
 }
 
+/**
+ * A download filename derived from an untrusted label (on-chain pointers are written by anyone):
+ * keep word characters, dots and dashes, cap the length, and never start with a dot.
+ */
+function safeFileName(label: string | undefined, fallback: string): string {
+  const cleaned = (label ?? '').replace(/[^\w.-]/g, '_').replace(/^\.+/, '').slice(0, 100)
+  return cleaned || fallback
+}
+
 function triggerDownload(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -128,6 +137,14 @@ const manifest = ref<SealedManifest | null>(null)
 function onEncFile(e: Event): void {
   encFile.value = (e.target as HTMLInputElement).files?.[0] ?? null
 }
+
+// SessionKeys are per address: drop them whenever the wallet disconnects or switches account.
+watch(
+  () => account.value?.address,
+  (next, prev) => {
+    if (prev && next !== prev) clearSealSessions()
+  },
+)
 
 watch(
   [() => account.value?.address, encProvider],
@@ -184,7 +201,9 @@ async function performEncrypt(): Promise<void> {
     const data = new Uint8Array(await encFile.value.arrayBuffer())
     const { id, ciphertext } = await (await getSealController()).encrypt(provider.type, params, data)
     status.value = 'Storing ciphertext on Walrus…'
-    const blobId = await storeBlob(ciphertext)
+    const owner = account.value?.address
+    if (!owner) throw new Error('Connect your wallet to store the ciphertext.')
+    const blobId = await storeBlob(ciphertext, { sendObjectTo: owner })
     manifest.value = {
       policyType: provider.type,
       id,
@@ -205,7 +224,7 @@ async function performEncrypt(): Promise<void> {
 function downloadManifest(): void {
   if (!manifest.value) return
   const blob = new Blob([JSON.stringify(manifest.value, null, 2)], { type: 'application/json' })
-  triggerDownload(blob, `${manifest.value.label ?? 'sealed'}.seal.json`)
+  triggerDownload(blob, `${safeFileName(manifest.value.label, 'sealed')}.seal.json`)
 }
 
 // ── Decrypt ──────────────────────────────────────────────────────────────────
@@ -257,7 +276,7 @@ async function performDecrypt(): Promise<void> {
       address: account.value.address,
       signPersonalMessage,
     })
-    triggerDownload(new Blob([plaintext.slice().buffer as ArrayBuffer]), m.label ?? 'decrypted')
+    triggerDownload(new Blob([plaintext.slice().buffer as ArrayBuffer]), safeFileName(m.label, 'decrypted'))
     status.value = 'Decrypted — download started.'
   } catch (e) {
     errorMsg.value = e instanceof Error ? e.message : String(e)
@@ -350,7 +369,7 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
       ciphertext,
       { address: account.value.address, signPersonalMessage },
     )
-    triggerDownload(new Blob([plaintext.slice().buffer as ArrayBuffer]), item.label || 'decrypted')
+    triggerDownload(new Blob([plaintext.slice().buffer as ArrayBuffer]), safeFileName(item.label, 'decrypted'))
     status.value = 'Decrypted — download started.'
   } catch (e) {
     errorMsg.value = e instanceof Error ? e.message : String(e)

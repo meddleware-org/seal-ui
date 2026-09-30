@@ -54,6 +54,25 @@ active network). On mainnet, populate `VITE_SEAL_PACKAGE_ID_MAINNET`,
 required. Until those are set, the app shows a "not configured" notice and disables sealing.
 `MAINNET_PENDING` is now an alias for `!SEAL_CONFIGURED` (config-driven, not hardcoded).
 
+Mainnet specifics (2026-09-29, workspace grounding log D4):
+
+- The default committee is the verified Mysten mainnet committee behind the mainnet aggregator,
+  at threshold 1 (a committee counts as one server). That aggregator needs
+  `VITE_SEAL_AGGREGATOR_API_KEY_MAINNET` (an Enoki key).
+- There is no default mainnet Walrus publisher; storing fails with a clear error until
+  `VITE_WALRUS_PUBLISHER_MAINNET` names an operator-run publisher.
+- `config.ts` throws at startup when the threshold is outside `[1, total server weight]`.
+
+## Storage and discovery safety
+
+- Publisher uploads are `permanent=true`, use `send_object_to=<connected address>` (the user owns
+  the `Blob` object), are capped at `VITE_WALRUS_MAX_UPLOAD_BYTES`, require https and time out.
+- Reads use `strict_consistency_check=true`.
+- Discovery walks `SealedContentPublished` events newest-first with a cursor and a page budget,
+  comparing normalised gate ids.
+- Download filenames derived from on-chain labels are sanitised.
+- Cached SessionKeys are dropped whenever the wallet disconnects or switches account.
+
 ## Dependency order
 
 `@meddleware/seal-client` must be published before the Docker image (or a plain `npm install`) can

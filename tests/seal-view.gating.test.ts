@@ -21,7 +21,11 @@ async function mountWith(sealConfigured: boolean, network = 'testnet') {
     }),
     getSuiClient: () => ({}),
   }))
-  vi.doMock('../src/seal.js', () => ({ registry: { list: () => [] }, getSealController: vi.fn() }))
+  vi.doMock('../src/seal.js', () => ({
+    registry: { list: () => [] },
+    getSealController: vi.fn(),
+    clearSealSessions: vi.fn(),
+  }))
   vi.doMock('../src/walrus.js', () => ({ storeBlob: vi.fn(), readBlob: vi.fn() }))
   vi.doMock('../src/sealed-content.js', () => ({ discoverSealedContent: vi.fn() }))
   const { default: SealView } = await import('../src/components/SealView.vue')
