@@ -15,7 +15,9 @@ and later decrypt it if the on-chain policy allows.
   `registry.list()` + `provider.describe()`. Adding a policy type needs **no change here** — register
   a provider in `@meddleware/seal-client` and it appears automatically.
 - **No server secrets, no key server.** Decryption keys come from a threshold committee of
-  independent key servers (config-supplied). This app never holds key material.
+  independent key servers (config-supplied). This app never holds key material. We deliberately do
+  not run our own key server: it would let us decrypt users' data (workspace
+  `docs/architecture/ADR-0002-seal-key-servers.md`, which also covers the mainnet options).
 - **Storage is opaque HTTP.** Ciphertext is stored/read via the Walrus HTTP publisher/aggregator
   (`src/walrus.ts`, a thin wrapper over `@meddleware/walrus-client/http`) — no `@mysten/walrus`
   SDK, no wasm. Routing uploads through the Meddleware relay
