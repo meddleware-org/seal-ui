@@ -9,9 +9,8 @@
 // globals via main.ts → styles.css.
 import { computed, onMounted, ref, watch } from 'vue'
 import { AppTabNav, UiStepper, UiTabPanel, UiToolIntro, type AppTab, type StepperStep } from '@meddleware/ui'
-import { Transaction } from '@mysten/sui/transactions'
 import {
-  buildPublishSealedContentTx,
+  buildPublishSealedContentTransaction,
   type SealedManifest,
   type SealPolicyProvider,
   type SealedContentPointer,
@@ -23,15 +22,15 @@ import { useWallet, getSuiClient } from '../wallet.js'
 import { registry, getSealController, clearSealSessions } from '../seal.js'
 import { storeBlob, readBlob } from '../walrus.js'
 import { discoverSealedContent } from '../sealed-content.js'
-import { NETWORK, SEAL_CONFIGURED, SEAL_PACKAGE_ID } from '../config.js'
+import { activeConfig, network } from '../config.js'
 
 const { account, signPersonalMessage, signAndExecute } = useWallet()
 
-const providers = registry.list() as SealPolicyProvider[]
+const providers = computed(() => registry.value.list() as SealPolicyProvider[])
 
 /** Shown inside each tab panel until a wallet is connected. */
 const GUARD_MESSAGE = 'Connect a Sui wallet to encrypt and decrypt sealed content.'
-const disabled = computed(() => !SEAL_CONFIGURED)
+const disabled = computed(() => activeConfig.value.problem !== null)
 
 const TABS: AppTab[] = [
   { id: 'encrypt', label: 'Encrypt' },
@@ -68,7 +67,7 @@ watch(tab, () => {
 // Force manual mode so the pre-set ID renders in the text input immediately, before suggestions load.
 onMounted(() => {
   const gate = new URLSearchParams(location.search).get('gate')
-  if (gate && providers.some((p) => p.type === 'nft-gate')) {
+  if (gate && providers.value.some((p) => p.type === 'nft-gate')) {
     encType.value = 'nft-gate'
     encValues.value = { ...encValues.value, gateId: gate }
     encGateManual.value = true
@@ -120,8 +119,8 @@ async function fetchGateSuggestions(provider: SealPolicyProvider | null): Promis
 }
 
 // ── Encrypt ──────────────────────────────────────────────────────────────────
-const encType = ref(providers[0]?.type ?? '')
-const encProvider = computed(() => providers.find((p) => p.type === encType.value) ?? null)
+const encType = ref(providers.value[0]?.type ?? '')
+const encProvider = computed(() => providers.value.find((p) => p.type === encType.value) ?? null)
 const encValues = ref<Record<string, string | boolean>>({})
 
 /** One input per policy field; its type follows the field kind (v-model handles each type). */
@@ -146,6 +145,15 @@ watch(
   },
 )
 
+// A network switch invalidates everything shown for the previous network.
+watch(network, () => {
+  manifest.value = null
+  publishDigest.value = null
+  discovered.value = []
+  status.value = null
+  errorMsg.value = null
+})
+
 watch(
   [() => account.value?.address, encProvider],
   async ([, provider]) => {
@@ -163,10 +171,10 @@ watch(
 )
 
 watch(
-  [() => account.value?.address, tab],
+  [() => account.value?.address, tab, network],
   async ([, t]) => {
     if (t !== 'unlock') return
-    const nftGateProvider = providers.find((p) => p.type === 'nft-gate') ?? null
+    const nftGateProvider = providers.value.find((p) => p.type === 'nft-gate') ?? null
     unlockGateLoading.value = true
     unlockGateManual.value = false
     try {
@@ -208,7 +216,7 @@ async function performEncrypt(): Promise<void> {
       policyType: provider.type,
       id,
       blobId,
-      network: NETWORK,
+      network: network.value,
       params,
       label: encLabel.value || encFile.value.name,
     }
@@ -234,11 +242,11 @@ const decValues = ref<Record<string, string | boolean>>({})
 // AND enforce that it targets the network this app is built for — a manifest sealed on another
 // network references a package + committee that don't exist here and can never decrypt. The
 // `decManifestError` is surfaced next to the input so a rejection explains itself.
-const decCheck = computed(() => checkManifestForNetwork(decManifestText.value, NETWORK))
+const decCheck = computed(() => checkManifestForNetwork(decManifestText.value, network.value))
 const decManifest = computed<SealedManifest | null>(() => decCheck.value.manifest)
 const decManifestError = computed<string | null>(() => decCheck.value.error)
 const decProvider = computed(() =>
-  decManifest.value ? (providers.find((p) => p.type === decManifest.value?.policyType) ?? null) : null,
+  decManifest.value ? (providers.value.find((p) => p.type === decManifest.value?.policyType) ?? null) : null,
 )
 
 async function onManifestFile(e: Event): Promise<void> {
@@ -302,8 +310,9 @@ async function performPublish(): Promise<void> {
   busy.value = true
   try {
     status.value = 'Publishing on-chain pointer — approve the transaction in your wallet…'
-    const tx = new Transaction()
-    buildPublishSealedContentTx(tx, SEAL_PACKAGE_ID, {
+    const seal = activeConfig.value.seal
+    if (!seal) throw new Error(activeConfig.value.problem ?? 'Sealed Storage is not available on this network.')
+    const tx = buildPublishSealedContentTransaction(seal.publishedAt, {
       gateId: String(m.params.gateId),
       blobId: m.blobId,
       sealId: m.id,
@@ -384,18 +393,7 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
 
     <UiToolIntro>Client-side encrypted, access-gated storage on Walrus + Sui.</UiToolIntro>
 
-    <p v-if="!SEAL_CONFIGURED" class="notice notice--warn">
-      <template v-if="NETWORK === 'mainnet'">
-        Seal is not configured for mainnet. Set
-        <code>VITE_SEAL_PACKAGE_ID_MAINNET</code>,
-        <code>VITE_SEAL_SERVER_OBJECT_IDS_MAINNET</code>, and
-        <code>VITE_SEAL_AGGREGATOR_URLS_MAINNET</code>, then redeploy.
-      </template>
-      <template v-else>
-        This deployment has no Seal policy package or key-server committee configured
-        (<code>VITE_SEAL_PACKAGE_ID_*</code> / <code>VITE_SEAL_SERVER_OBJECT_IDS_*</code>).
-      </template>
-    </p>
+    <p v-if="activeConfig.problem" class="notice notice--warn">{{ activeConfig.problem }}</p>
 
     <!-- The tab list and every panel always render (each tab controls a live panel); the wallet
          prompt replaces only a panel's content until a wallet is connected. Panels stay mounted

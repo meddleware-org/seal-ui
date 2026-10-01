@@ -1,17 +1,16 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { shallowMount } from '@vue/test-utils'
 
-// Mount SealView with its config + wiring modules mocked, so we can drive SEAL_CONFIGURED and assert
-// the network-gating behaviour (the "not configured" notice + disabled encrypt control) without a
+// Mount SealView with its config + wiring modules mocked, so we can drive the active network's
+// configuration and assert the gating (the "not available / not configured" notice) without a
 // wallet, key-server committee, or Walrus endpoint. shallowMount stubs child components
 // (WalletGuard, AppTabNav) but renders SealView's own template, where the gate lives.
-async function mountWith(sealConfigured: boolean, network = 'testnet') {
+async function mountWith(problem: string | null, network = 'testnet') {
   vi.resetModules()
   vi.doMock('../src/config.js', () => ({
-    NETWORK: network,
-    SEAL_CONFIGURED: sealConfigured,
-    SEAL_PACKAGE_ID: sealConfigured ? '0xpkg' : '',
+    network: ref(network),
+    activeConfig: computed(() => ({ network, problem, seal: problem ? null : { originalId: '0x1', publishedAt: '0x1' } })),
   }))
   vi.doMock('../src/wallet.js', () => ({
     useWallet: () => ({
@@ -22,7 +21,7 @@ async function mountWith(sealConfigured: boolean, network = 'testnet') {
     getSuiClient: () => ({}),
   }))
   vi.doMock('../src/seal.js', () => ({
-    registry: { list: () => [] },
+    registry: computed(() => ({ list: () => [] })),
     getSealController: vi.fn(),
     clearSealSessions: vi.fn(),
   }))
@@ -35,23 +34,21 @@ async function mountWith(sealConfigured: boolean, network = 'testnet') {
 afterEach(() => vi.resetModules())
 
 describe('SealView network gating', () => {
-  // The not-configured warning notice sits outside WalletGuard and is bound directly to
-  // `v-if="!SEAL_CONFIGURED"`, so its presence/absence is the wallet-independent config-gating
-  // signal. (The encrypt controls themselves live behind WalletGuard's connect prompt.)
-  it('shows the not-configured notice when SEAL_CONFIGURED is false', async () => {
-    const w = await mountWith(false)
+  // The notice sits outside WalletGuard and is bound to `activeConfig.problem`, so its presence is
+  // the wallet-independent gating signal. (The encrypt controls live behind the connect prompt.)
+  it('shows why sealing is unavailable on the active network', async () => {
+    const w = await mountWith('Sealed Storage is not available on mainnet: no seal_policies deployment is recorded for it.', 'mainnet')
     expect(w.find('.notice--warn').exists()).toBe(true)
-    expect(w.text()).toContain('no Seal policy package')
+    expect(w.text()).toContain('not available on mainnet')
   })
 
-  it('shows the mainnet-specific notice on mainnet when unconfigured', async () => {
-    const w = await mountWith(false, 'mainnet')
-    expect(w.find('.notice--warn').exists()).toBe(true)
-    expect(w.text()).toContain('not configured for mainnet')
+  it('shows a configuration problem', async () => {
+    const w = await mountWith('Sealed Storage is not configured on localnet: set VITE_SEAL_SERVER_OBJECT_IDS_LOCALNET', 'localnet')
+    expect(w.text()).toContain('VITE_SEAL_SERVER_OBJECT_IDS_LOCALNET')
   })
 
-  it('hides the not-configured notice when configured', async () => {
-    const w = await mountWith(true)
+  it('hides the notice when configured', async () => {
+    const w = await mountWith(null)
     expect(w.find('.notice--warn').exists()).toBe(false)
   })
 })

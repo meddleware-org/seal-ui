@@ -1,39 +1,60 @@
-// Wires the shared @meddleware/seal-client into this app: one registry (drives the policy picker)
-// and one SealController (encrypt/decrypt over the configured committee). Module singletons.
+// Wires the shared @meddleware/seal-client into this app: a policy registry (drives the picker)
+// and a SealController (encrypt/decrypt over the configured committee), each per network.
 //
 // SealController is loaded lazily (dynamic import) so @mysten/seal and @noble/curves are kept
 // out of the initial bundle — they're only needed when the user triggers encrypt/decrypt.
+import { computed } from 'vue'
 import { createDefaultRegistry, type PolicyRegistry } from '@meddleware/seal-client'
 import type { SealController } from '@meddleware/seal-client/controller'
 import { getSuiClient } from './wallet.js'
-import { NETWORK, SEAL_PACKAGE_ID, SEAL_THRESHOLD, SEAL_SERVERS, ACCESS_GATE_PACKAGE_ID } from './config.js'
+import { activeConfig, type SealConfig } from './config.js'
 
-/** The policy registry (nft-gate + time-lock as peers). Iterate `list()` to render the picker. */
-export const registry: PolicyRegistry = createDefaultRegistry(ACCESS_GATE_PACKAGE_ID[NETWORK])
+const registries = new Map<string, PolicyRegistry>()
+const controllers = new Map<string, SealController>()
 
-let controller: SealController | null = null
+/** The policy registry for a network (nft-gate + time-lock as peers). */
+export function registryFor(cfg: SealConfig): PolicyRegistry {
+  let r = registries.get(cfg.network)
+  if (!r) {
+    r = createDefaultRegistry(cfg.accessGateOriginalId)
+    registries.set(cfg.network, r)
+  }
+  return r
+}
 
-/** Lazily build the SealController from build-time config + the shared registry. */
+/** The registry for the active network. Iterate `list()` to render the picker. */
+export const registry = computed(() => registryFor(activeConfig.value))
+
+/**
+ * The SealController for the active network, built on first use.
+ *
+ * @throws {Error} when sealing is not configured on the active network (the reason is the message).
+ */
 export async function getSealController(): Promise<SealController> {
-  if (!controller) {
+  const cfg = activeConfig.value
+  if (cfg.problem || !cfg.seal) throw new Error(cfg.problem ?? `Sealed Storage is not available on ${cfg.network}.`)
+  let c = controllers.get(cfg.network)
+  if (!c) {
     const { SealController } = await import('@meddleware/seal-client/controller')
-    controller = new SealController(
+    c = new SealController(
       {
         suiClient: getSuiClient(),
-        packageId: SEAL_PACKAGE_ID,
-        threshold: SEAL_THRESHOLD,
-        serverConfigs: SEAL_SERVERS,
+        originalId: cfg.seal.originalId,
+        publishedAt: cfg.seal.publishedAt,
+        threshold: cfg.threshold,
+        serverConfigs: cfg.servers,
       },
-      registry,
+      registryFor(cfg),
     )
+    controllers.set(cfg.network, c)
   }
-  return controller
+  return c
 }
 
 /**
- * Drop every cached SessionKey (wallet disconnected or switched account). A no-op before the
+ * Drop every cached SessionKey (wallet disconnected or switched account). A no-op before a
  * controller has been loaded, so calling it never pulls `@mysten/seal` into the bundle.
  */
 export function clearSealSessions(): void {
-  controller?.clearSession()
+  for (const c of controllers.values()) c.clearSession()
 }

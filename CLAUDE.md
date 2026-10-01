@@ -17,10 +17,11 @@ and later decrypt it if the on-chain policy allows.
 - **No server secrets, no key server.** Decryption keys come from a threshold committee of
   independent key servers (config-supplied). This app never holds key material.
 - **Storage is opaque HTTP.** Ciphertext is stored/read via the Walrus HTTP publisher/aggregator
-  (`src/walrus.ts`) — no `@mysten/walrus` SDK, no wasm. Routing uploads through the Meddleware relay
+  (`src/walrus.ts`, a thin wrapper over `@meddleware/walrus-client/http`) — no `@mysten/walrus`
+  SDK, no wasm. Routing uploads through the Meddleware relay
   (to capture tip/commission) is a documented future enhancement.
 - **Wallet-agnostic + shared.** Wallet access goes through `src/wallet.ts`, a thin shim over the
-  shared `@meddleware/wallet-adapter` singleton (binds this app's `RPC_URLS`). The wallet is needed
+  shared `@meddleware/wallet-adapter` singleton (client and executor for the selected network). The wallet is needed
   only to decrypt (sign the SessionKey personal message) and to publish a discovery pointer. The
   singleton means that when `SealView` is embedded in the dashboard alongside other tool views,
   they all share one connection. Do not reintroduce a local wallet-standard implementation.
@@ -29,10 +30,11 @@ and later decrypt it if the on-chain policy allows.
 
 | File | Purpose |
 | --- | --- |
-| `src/config.ts` | Build-time env: network, RPC, seal package id, committee ids/aggregators, walrus endpoints |
-| `src/seal.ts` | Shared `registry` + lazy `SealController` from config |
-| `src/wallet.ts` | Shim over `@meddleware/wallet-adapter` binding this app's `RPC_URLS`; re-exports `useWallet` / `getSuiClient` / `signPersonalMessage` / `signAndExecute` |
-| `src/walrus.ts` | Walrus HTTP `storeBlob` / `readBlob` |
+| `src/config.ts` | `network` (wallet-adapter selector); `sealConfig(net)` / `activeConfig`: ids from `deployments`, committee + threshold + Walrus endpoints from `VITE_*_{NET}`, and `problem` when sealing is unavailable |
+| `src/seal.ts` | Per-network `registry` + lazy `SealController` (`originalId` / `publishedAt` from `deployments`) |
+| `src/sealed-content.ts` | `discoverSealedContent` over seal-client `listSealedContent` (optional indexer) |
+| `src/wallet.ts` | Shim over `@meddleware/wallet-adapter` for the selected network; re-exports `useWallet` / `getSuiClient` / `signPersonalMessage` / `signAndExecute` |
+| `src/walrus.ts` | `storeBlob` / `readBlob` over walrus-client `/http` with the network's endpoints |
 | `src/components/SealView.vue` | Core tool UI (Encrypt/Decrypt/Unlock tabs, generic policy form, manifest, publish pointer). **Scoped** styles so it embeds without the global stylesheet. Exported from `src/index.ts`. |
 | `src/index.ts` | Library entry — exports `SealView` for the dashboard to render inline |
 | `src/App.vue` | Standalone shell only: `AppHeader` (+ network badge, `ColorModeControl`) + `<SealView>` + `AppFooter` |
@@ -48,11 +50,15 @@ remain a thin shell.
 
 ## Network gating
 
-The UI is enabled when `SEAL_CONFIGURED` is true (package ID + committee both non-empty for the
-active network). On mainnet, populate `VITE_SEAL_PACKAGE_ID_MAINNET`,
-`VITE_SEAL_SERVER_OBJECT_IDS_MAINNET`, and `VITE_SEAL_AGGREGATOR_URLS_MAINNET` — no code change
-required. Until those are set, the app shows a "not configured" notice and disables sealing.
-`MAINNET_PENDING` is now an alias for `!SEAL_CONFIGURED` (config-driven, not hardcoded).
+The network is wallet-adapter's shared runtime selector (the standalone `main.ts` selects
+`VITE_NETWORK`). Sealing is enabled while `activeConfig.problem` is null, which needs:
+
+- a `seal_policies` deployment recorded for the network (in seal-client's `deployments`);
+- a key-server committee (Mysten defaults on testnet and mainnet, or `VITE_SEAL_SERVER_OBJECT_IDS_{NET}`);
+- a valid threshold.
+
+Otherwise the view shows the reason and disables sealing. A network switch clears what was shown
+for the previous network, and registries and controllers are kept per network.
 
 Mainnet specifics (2026-09-29, workspace grounding log D4):
 
@@ -61,15 +67,18 @@ Mainnet specifics (2026-09-29, workspace grounding log D4):
   `VITE_SEAL_AGGREGATOR_API_KEY_MAINNET` (an Enoki key).
 - There is no default mainnet Walrus publisher; storing fails with a clear error until
   `VITE_WALRUS_PUBLISHER_MAINNET` names an operator-run publisher.
-- `config.ts` throws at startup when the threshold is outside `[1, total server weight]`.
+- A threshold outside `[1, total server weight]` disables sealing on that network with the reason.
 
 ## Storage and discovery safety
 
 - Publisher uploads are `permanent=true`, use `send_object_to=<connected address>` (the user owns
   the `Blob` object), are capped at `VITE_WALRUS_MAX_UPLOAD_BYTES`, require https and time out.
 - Reads use `strict_consistency_check=true`.
-- Discovery walks `SealedContentPublished` events newest-first with a cursor and a page budget,
-  comparing normalised gate ids.
+- Discovery is seal-client's `listSealedContent`: `SealedContentPublished` decoded from BCS at the
+  deployment's original id, newest first with a page budget, gate ids compared normalised; from
+  the read-indexer when `VITE_INDEXER_URL` is set (display data; falls back to the full node).
+- The discovery pointer is built by seal-client (`buildPublishSealedContentTransaction`) at the
+  latest `publishedAt`; this app constructs no transactions itself.
 - Download filenames derived from on-chain labels are sanitised.
 - Cached SessionKeys are dropped whenever the wallet disconnects or switches account.
 
@@ -83,7 +92,8 @@ build. For local dev: `cd ../seal-client && npm link`, then `npm link @meddlewar
 
 - Do not add policy-specific logic here — it belongs in `@meddleware/seal-client` + `seal_policies`.
 - Do not hold or derive decryption keys; the committee does that.
-- Do not hardcode network config; read `import.meta.env.VITE_*` via `src/config.ts`.
+- Do not hardcode or env-configure package ids; they come from `deployments`. Operator settings
+  are read per network via `sealConfig` in `src/config.ts`.
 
 ---
 
@@ -102,5 +112,5 @@ build. For local dev: `cd ../seal-client && npm link`, then `npm link @meddlewar
 ### White-label operator path (to write later)
 
 - Deploying against an operator's **own `seal_policies` package + key-server committee**: the
-  `VITE_SEAL_*` build args (package id, committee ids, aggregator URLs, threshold) and how mainnet is
-  enabled purely by populating them (`SEAL_CONFIGURED`); branding via design-tokens + `AppHeader`.
+  `VITE_SEAL_*` build args (committee ids, aggregator URLs, threshold) and the published
+  `deployments` the package ids come from; branding via design-tokens + `AppHeader`.

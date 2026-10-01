@@ -1,38 +1,40 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import { computed } from 'vue'
 
-const GATE = '0x' + '0'.repeat(62) + 'ab'
+// Discovery delegates to seal-client's listSealedContent (tested there); this checks the wrapper
+// passes the active deployment, the gate, the cap and the optional indexer.
+const { listSealedContent } = vi.hoisted(() => ({ listSealedContent: vi.fn() }))
 
-function ev(gate: string, label: string) {
-  return { json: { gate_id: gate, content_id: `c-${label}`, blob_id: 'b', seal_id: 's', label, publisher: '0x1' } }
-}
-
-async function load(listEvents: ReturnType<typeof vi.fn>) {
+async function load(cfg: Record<string, unknown>, indexer = '') {
   vi.resetModules()
-  vi.doMock('../src/config.js', () => ({ SEAL_PACKAGE_ID: '0x42' }))
-  vi.doMock('../src/wallet.js', () => ({ getSuiClient: () => ({ listEvents }) }))
+  vi.doMock('@meddleware/seal-client', () => ({ listSealedContent }))
+  vi.doMock('../src/wallet.js', () => ({ getSuiClient: () => ({ client: true }) }))
+  vi.doMock('../src/config.js', () => ({ activeConfig: computed(() => cfg), INDEXER_URL: indexer }))
   return import('../src/sealed-content.js')
 }
 
-afterEach(() => vi.resetModules())
+afterEach(() => {
+  listSealedContent.mockReset()
+  vi.resetModules()
+})
 
 describe('discoverSealedContent', () => {
-  it('walks pages newest-first and matches gate ids in any hex form', async () => {
-    const listEvents = vi
-      .fn()
-      .mockResolvedValueOnce({ events: [ev('0xAB', 'newest'), ev('0xcd', 'other')], hasNextPage: true, endCursor: 'C1' })
-      .mockResolvedValueOnce({ events: [ev(GATE, 'older')], hasNextPage: false, endCursor: 'C2' })
-    const { discoverSealedContent } = await load(listEvents)
-    const found = await discoverSealedContent('ab')
-    expect(found.map((p) => p.label)).toEqual(['newest', 'older'])
-    expect(listEvents.mock.calls[0][0]).toMatchObject({ order: 'descending' })
-    expect(listEvents.mock.calls[0][0]).not.toHaveProperty('before')
-    expect(listEvents.mock.calls[1][0]).toMatchObject({ order: 'descending', before: 'C1' })
+  it('lists the gate\'s pointers at the deployment\'s original id', async () => {
+    listSealedContent.mockResolvedValue({ pointers: [{ label: 'a' }], cursor: null, source: 'rpc' })
+    const { discoverSealedContent, MAX_DISCOVERED } = await load({ network: 'testnet', seal: { originalId: '0x42', publishedAt: '0x43' } })
+    expect(await discoverSealedContent('0xgate')).toEqual([{ label: 'a' }])
+    expect(listSealedContent).toHaveBeenCalledWith({ client: true }, { originalId: '0x42', gateId: '0xgate', limit: MAX_DISCOVERED, indexer: undefined })
   })
 
-  it('stops at the page budget even when more pages exist', async () => {
-    const listEvents = vi.fn(async () => ({ events: [], hasNextPage: true, endCursor: 'C' }))
-    const { discoverSealedContent, MAX_EVENT_PAGES } = await load(listEvents)
-    expect(await discoverSealedContent(GATE)).toEqual([])
-    expect(listEvents).toHaveBeenCalledTimes(MAX_EVENT_PAGES)
+  it('reads the indexer for the active network when configured', async () => {
+    listSealedContent.mockResolvedValue({ pointers: [], cursor: null, source: 'indexer' })
+    const { discoverSealedContent } = await load({ network: 'testnet', seal: { originalId: '0x42', publishedAt: '0x42' } }, 'https://i.example')
+    await discoverSealedContent('0xgate')
+    expect(listSealedContent.mock.calls[0][1].indexer).toEqual({ url: 'https://i.example', network: 'testnet' })
+  })
+
+  it('explains a network without a deployment', async () => {
+    const { discoverSealedContent } = await load({ network: 'mainnet', seal: null, problem: 'not available on mainnet' })
+    await expect(discoverSealedContent('0xgate')).rejects.toThrow('not available on mainnet')
   })
 })

@@ -65,10 +65,10 @@ jobs:
           cache-to: type=gha,scope=amd64-public,mode=max
           build-args: |
             VITE_NETWORK=${{ vars.VITE_NETWORK || 'testnet' }}
-            VITE_SEAL_PACKAGE_ID_TESTNET=${{ secrets.VITE_SEAL_PACKAGE_ID_TESTNET }}
             VITE_SEAL_SERVER_OBJECT_IDS_TESTNET=${{ secrets.VITE_SEAL_SERVER_OBJECT_IDS_TESTNET }}
             VITE_SEAL_AGGREGATOR_URLS_TESTNET=${{ secrets.VITE_SEAL_AGGREGATOR_URLS_TESTNET }}
-            VITE_SEAL_THRESHOLD=${{ vars.VITE_SEAL_THRESHOLD || '2' }}
+            VITE_SEAL_THRESHOLD_TESTNET=${{ vars.VITE_SEAL_THRESHOLD_TESTNET }}
+            VITE_INDEXER_URL=${{ vars.VITE_INDEXER_URL }}
 
   build-docker-arm64-public:
     name: Docker arm64 (quay.io + Docker Hub)
@@ -107,10 +107,10 @@ jobs:
           cache-to: type=gha,scope=arm64-public,mode=max
           build-args: |
             VITE_NETWORK=${{ vars.VITE_NETWORK || 'testnet' }}
-            VITE_SEAL_PACKAGE_ID_TESTNET=${{ secrets.VITE_SEAL_PACKAGE_ID_TESTNET }}
             VITE_SEAL_SERVER_OBJECT_IDS_TESTNET=${{ secrets.VITE_SEAL_SERVER_OBJECT_IDS_TESTNET }}
             VITE_SEAL_AGGREGATOR_URLS_TESTNET=${{ secrets.VITE_SEAL_AGGREGATOR_URLS_TESTNET }}
-            VITE_SEAL_THRESHOLD=${{ vars.VITE_SEAL_THRESHOLD || '2' }}
+            VITE_SEAL_THRESHOLD_TESTNET=${{ vars.VITE_SEAL_THRESHOLD_TESTNET }}
+            VITE_INDEXER_URL=${{ vars.VITE_INDEXER_URL }}
 
   merge-docker-public:
     name: Merge + sign (quay.io + Docker Hub)
@@ -255,10 +255,10 @@ jobs:
           cache-to: type=gha,scope=amd64-private,mode=max
           build-args: |
             VITE_NETWORK=${{ vars.VITE_NETWORK || 'testnet' }}
-            VITE_SEAL_PACKAGE_ID_TESTNET=${{ secrets.VITE_SEAL_PACKAGE_ID_TESTNET }}
             VITE_SEAL_SERVER_OBJECT_IDS_TESTNET=${{ secrets.VITE_SEAL_SERVER_OBJECT_IDS_TESTNET }}
             VITE_SEAL_AGGREGATOR_URLS_TESTNET=${{ secrets.VITE_SEAL_AGGREGATOR_URLS_TESTNET }}
-            VITE_SEAL_THRESHOLD=${{ vars.VITE_SEAL_THRESHOLD || '2' }}
+            VITE_SEAL_THRESHOLD_TESTNET=${{ vars.VITE_SEAL_THRESHOLD_TESTNET }}
+            VITE_INDEXER_URL=${{ vars.VITE_INDEXER_URL }}
 
   build-docker-arm64-private:
     name: Docker arm64 (self-hosted registry)
@@ -289,10 +289,10 @@ jobs:
           cache-to: type=gha,scope=arm64-private,mode=max
           build-args: |
             VITE_NETWORK=${{ vars.VITE_NETWORK || 'testnet' }}
-            VITE_SEAL_PACKAGE_ID_TESTNET=${{ secrets.VITE_SEAL_PACKAGE_ID_TESTNET }}
             VITE_SEAL_SERVER_OBJECT_IDS_TESTNET=${{ secrets.VITE_SEAL_SERVER_OBJECT_IDS_TESTNET }}
             VITE_SEAL_AGGREGATOR_URLS_TESTNET=${{ secrets.VITE_SEAL_AGGREGATOR_URLS_TESTNET }}
-            VITE_SEAL_THRESHOLD=${{ vars.VITE_SEAL_THRESHOLD || '2' }}
+            VITE_SEAL_THRESHOLD_TESTNET=${{ vars.VITE_SEAL_THRESHOLD_TESTNET }}
+            VITE_INDEXER_URL=${{ vars.VITE_INDEXER_URL }}
 
   merge-docker-private:
     name: Merge (self-hosted registry)

@@ -4,16 +4,16 @@
 #
 # VITE_* build args (baked into the static bundle at build time):
 #   VITE_NETWORK                          — "testnet" | "mainnet" (default testnet)
-#   VITE_RPC_{TESTNET,MAINNET}            — override default Sui RPC URLs (optional)
-#   VITE_SEAL_PACKAGE_ID_{NET}            — published seal_policies package id (required to seal)
+#   (the seal_policies and access_gate ids come from the published `deployments`, not build args)
 #   VITE_SEAL_SERVER_OBJECT_IDS_{NET}     — CSV of key-server object ids (committee)
 #   VITE_SEAL_AGGREGATOR_URLS_{NET}       — CSV of aggregator URLs, index-aligned with the ids
 #   VITE_SEAL_AGGREGATOR_API_KEY_{NET}    — Enoki API key for aggregator-backed servers (mainnet needs it)
-#   VITE_SEAL_THRESHOLD                   — t over the configured servers (default testnet 2, mainnet 1)
+#   VITE_SEAL_THRESHOLD_{NET}             — t over the configured servers (default testnet 2, mainnet 1)
 #   VITE_WALRUS_PUBLISHER_{NET}           — Walrus HTTP publisher (testnet default; mainnet has none)
 #   VITE_WALRUS_AGGREGATOR_{NET}          — Walrus HTTP aggregator (optional; Mysten reference default)
 #   VITE_WALRUS_EPOCHS                    — blob lifetime in epochs (default 5)
 #   VITE_WALRUS_MAX_UPLOAD_BYTES          — largest ciphertext sent to the publisher (default 10 MiB)
+#   VITE_INDEXER_URL                      — read-indexer for discovery (optional; falls back to the full node)
 # Content-Security-Policy served by static-server (verified 2026-09-30: production build loaded in
 # Chromium under this policy with zero violations). script-src stays 'self'; connect-src allows
 # any https origin because RPC, relay, aggregator and Seal key-server hosts are partly operator- or
@@ -29,42 +29,38 @@ RUN npm ci
 COPY . .
 
 ARG VITE_NETWORK=testnet
-ARG VITE_RPC_TESTNET
-ARG VITE_RPC_MAINNET
-ARG VITE_SEAL_PACKAGE_ID_TESTNET
-ARG VITE_SEAL_PACKAGE_ID_MAINNET
 ARG VITE_SEAL_SERVER_OBJECT_IDS_TESTNET
 ARG VITE_SEAL_SERVER_OBJECT_IDS_MAINNET
 ARG VITE_SEAL_AGGREGATOR_URLS_TESTNET
 ARG VITE_SEAL_AGGREGATOR_URLS_MAINNET
 ARG VITE_SEAL_AGGREGATOR_API_KEY_TESTNET
 ARG VITE_SEAL_AGGREGATOR_API_KEY_MAINNET
-ARG VITE_SEAL_THRESHOLD
+ARG VITE_SEAL_THRESHOLD_TESTNET
+ARG VITE_SEAL_THRESHOLD_MAINNET
 ARG VITE_WALRUS_PUBLISHER_TESTNET
 ARG VITE_WALRUS_PUBLISHER_MAINNET
 ARG VITE_WALRUS_AGGREGATOR_TESTNET
 ARG VITE_WALRUS_AGGREGATOR_MAINNET
 ARG VITE_WALRUS_EPOCHS
 ARG VITE_WALRUS_MAX_UPLOAD_BYTES
+ARG VITE_INDEXER_URL
 
 ENV VITE_NETWORK=${VITE_NETWORK} \
-    VITE_RPC_TESTNET=${VITE_RPC_TESTNET} \
-    VITE_RPC_MAINNET=${VITE_RPC_MAINNET} \
-    VITE_SEAL_PACKAGE_ID_TESTNET=${VITE_SEAL_PACKAGE_ID_TESTNET} \
-    VITE_SEAL_PACKAGE_ID_MAINNET=${VITE_SEAL_PACKAGE_ID_MAINNET} \
     VITE_SEAL_SERVER_OBJECT_IDS_TESTNET=${VITE_SEAL_SERVER_OBJECT_IDS_TESTNET} \
     VITE_SEAL_SERVER_OBJECT_IDS_MAINNET=${VITE_SEAL_SERVER_OBJECT_IDS_MAINNET} \
     VITE_SEAL_AGGREGATOR_URLS_TESTNET=${VITE_SEAL_AGGREGATOR_URLS_TESTNET} \
     VITE_SEAL_AGGREGATOR_URLS_MAINNET=${VITE_SEAL_AGGREGATOR_URLS_MAINNET} \
     VITE_SEAL_AGGREGATOR_API_KEY_TESTNET=${VITE_SEAL_AGGREGATOR_API_KEY_TESTNET} \
     VITE_SEAL_AGGREGATOR_API_KEY_MAINNET=${VITE_SEAL_AGGREGATOR_API_KEY_MAINNET} \
-    VITE_SEAL_THRESHOLD=${VITE_SEAL_THRESHOLD} \
+    VITE_SEAL_THRESHOLD_TESTNET=${VITE_SEAL_THRESHOLD_TESTNET} \
+    VITE_SEAL_THRESHOLD_MAINNET=${VITE_SEAL_THRESHOLD_MAINNET} \
     VITE_WALRUS_PUBLISHER_TESTNET=${VITE_WALRUS_PUBLISHER_TESTNET} \
     VITE_WALRUS_PUBLISHER_MAINNET=${VITE_WALRUS_PUBLISHER_MAINNET} \
     VITE_WALRUS_AGGREGATOR_TESTNET=${VITE_WALRUS_AGGREGATOR_TESTNET} \
     VITE_WALRUS_AGGREGATOR_MAINNET=${VITE_WALRUS_AGGREGATOR_MAINNET} \
     VITE_WALRUS_EPOCHS=${VITE_WALRUS_EPOCHS} \
-    VITE_WALRUS_MAX_UPLOAD_BYTES=${VITE_WALRUS_MAX_UPLOAD_BYTES}
+    VITE_WALRUS_MAX_UPLOAD_BYTES=${VITE_WALRUS_MAX_UPLOAD_BYTES} \
+    VITE_INDEXER_URL=${VITE_INDEXER_URL}
 
 RUN npm run build
 

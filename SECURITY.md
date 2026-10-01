@@ -19,9 +19,10 @@ treated as high severity:
 
 1. **The app never holds decryption keys.** Key material stays inside `@meddleware/seal-client` /
    the committee; decrypted plaintext is download-only and never logged or persisted.
-2. **`SEAL_CONFIGURED` fails closed.** Sealing is disabled unless the package id and committee are
-   both configured for the active network; a partially configured (e.g. mainnet-pending) state
-   disables sealing rather than attempting it.
+2. **Sealing fails closed per network.** Sealing is disabled (with the reason shown) unless the
+   active network has a recorded `seal_policies` deployment, a configured committee and a valid
+   threshold; a partially configured network never attempts it. Package ids come from the published
+   `deployments`, never from build configuration.
 3. **No private key material is a `VITE_*` value.** Committee object ids and aggregator URLs are
    public config; no secret is inlined into the bundle.
 4. **No dynamic HTML sinks.** Manifest fields (`label`/`params`/`policyType`) and policy-form inputs

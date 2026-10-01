@@ -2,7 +2,7 @@
 // Standalone shell for the Sealed Storage SPA: app header + footer wrapping the core tool view.
 // The core UI lives in SealView.vue (also exported for inline embedding in the dashboard).
 import { AppHeader, AppFooter, ColorModeControl, useColorMode } from '@meddleware/ui'
-import { NETWORK } from './config.js'
+import { network } from './config.js'
 import SealView from './components/SealView.vue'
 
 const { mode, set } = useColorMode('dark')
@@ -17,7 +17,7 @@ const DEV_URL  = import.meta.env.VITE_DEV_URL  || 'https://dev.meddleware.co.uk/
         <h1 class="brand-title">🔒 Sealed Storage</h1>
       </template>
       <template #actions>
-        <span class="badge">{{ NETWORK }}</span>
+        <span class="badge">{{ network }}</span>
         <ColorModeControl :model-value="mode" @update:model-value="set" />
       </template>
     </AppHeader>

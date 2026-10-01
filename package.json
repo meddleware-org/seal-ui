@@ -44,10 +44,12 @@
     "access": "public"
   },
   "dependencies": {
+    "@meddleware/access-gate-client": "^0.0.1",
     "@meddleware/design-tokens": "^0.1.7",
-    "@meddleware/seal-client": "^0.0.8",
+    "@meddleware/seal-client": "^0.0.9",
     "@meddleware/ui": "^0.1.28",
-    "@meddleware/wallet-adapter": "^0.0.10",
+    "@meddleware/wallet-adapter": "^0.0.11",
+    "@meddleware/walrus-client": "^0.0.20",
     "@mysten/sui": "^2.33.1",
     "@mysten/wallet-standard": "^0.21.0",
     "vue": "^3.5.43"
