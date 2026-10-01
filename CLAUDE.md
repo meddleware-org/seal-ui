@@ -25,6 +25,8 @@ and later decrypt it if the on-chain policy allows.
   only to decrypt (sign the SessionKey personal message) and to publish a discovery pointer. The
   singleton means that when `SealView` is embedded in the dashboard alongside other tool views,
   they all share one connection. Do not reintroduce a local wallet-standard implementation.
+  Declare `@meddleware/wallet-adapter` as a peerDependency (`>=0.0.12 <0.2.0`, plus a devDependency):
+  the host's single copy must satisfy every embedded tool, or each gets its own connection.
 
 ## Key files
 
