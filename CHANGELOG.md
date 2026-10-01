@@ -3,6 +3,13 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.24] - 2026-10-01
+
+- Runs on static-server 0.1.3 (per-response CSP script nonce for Cloudflare JavaScript
+  Detections, HSTS, Permissions-Policy).
+- `@meddleware/seal-client` 0.0.10: calls target seal_policies v2 (`0x8fcf9c39…15cb`); identities
+  still use the original id, so existing ciphertexts decrypt unchanged.
+
 ## [0.0.12] - 2026-09-17
 
 ### Added
