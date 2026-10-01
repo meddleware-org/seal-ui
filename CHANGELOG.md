@@ -3,6 +3,11 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.25] - 2026-10-01
+
+- `@meddleware/walrus-client` range `>=0.0.21 <0.2.0` (was `^0.0.20`, an exact pin on 0.0.x), so a
+  host such as the dashboard shares one copy.
+
 ## [0.0.24] - 2026-10-01
 
 - Runs on static-server 0.1.3 (per-response CSP script nonce for Cloudflare JavaScript
