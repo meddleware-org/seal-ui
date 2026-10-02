@@ -3,6 +3,20 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.27] - 2026-10-02
+
+- **Mainnet key servers** (workspace ADR-0002, D24): three keyless Open-mode servers run by
+  independent operators — Overclock, NodeInfra, H2O Nodes — at threshold 2, replacing the planned
+  Enoki committee. Mainnet sealing still waits for the mainnet `seal_policies` package.
+- **No API key path.** `VITE_SEAL_AGGREGATOR_API_KEY_{NET}` is gone; a key in a `VITE_*` var would ship
+  in the bundle. A test proves no server is ever configured with one.
+- **Custody notice.** `VITE_SEAL_KEY_CUSTODY_{NET}` (`independent` by default, or `operator` for the
+  self-hosted fallback) — with `operator`, the view says the site's operator could decrypt.
+- **Re-seal** (Decrypt tab): decrypts content with the key servers it was sealed to and seals it again
+  for the current ones, producing a new manifest (`@meddleware/seal-client` 0.0.12).
+- The publish workflow passes the mainnet server ids, threshold and custody variables, so switching
+  servers is a repository-variable change.
+
 ## [0.0.26] - 2026-10-02
 
 - Targets the version-gated `seal_policies` (testnet `0x61c4aa…`) through `@meddleware/seal-client`

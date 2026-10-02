@@ -44,17 +44,16 @@ describe('sealConfig', () => {
     expect(c.walrusPublisher).toBe('') // no public mainnet publisher
   })
 
-  it('reads per-network overrides, including the committee API key and threshold', async () => {
+  it('reads per-network overrides of servers and threshold', async () => {
     const { sealConfig } = await import('../src/config.js')
     const c = sealConfig('testnet', {
       VITE_SEAL_SERVER_OBJECT_IDS_TESTNET: '0xa,0xb',
       VITE_SEAL_AGGREGATOR_URLS_TESTNET: 'https://agg.example',
-      VITE_SEAL_AGGREGATOR_API_KEY_TESTNET: 'k',
       VITE_SEAL_THRESHOLD_TESTNET: '1',
       VITE_WALRUS_PUBLISHER_TESTNET: 'https://pub.example',
     })
     expect(c.servers).toEqual([
-      { objectId: '0xa', weight: 1, aggregatorUrl: 'https://agg.example', apiKeyName: 'X-API-Key', apiKey: 'k' },
+      { objectId: '0xa', weight: 1, aggregatorUrl: 'https://agg.example' },
       { objectId: '0xb', weight: 1, aggregatorUrl: undefined },
     ])
     expect(c.threshold).toBe(1)
@@ -69,5 +68,40 @@ describe('sealConfig', () => {
   it('reports a network with no committee', async () => {
     const { sealConfig } = await import('../src/config.js')
     expect(sealConfig('localnet', {}).problem).toMatch(/not available on localnet/)
+  })
+
+  it('mainnet defaults to three independent Open-mode servers at threshold 2 (ADR-0002, D24)', async () => {
+    const { sealConfig } = await import('../src/config.js')
+    const c = sealConfig('mainnet', {})
+    expect(c.servers.map((x) => x.objectId)).toEqual([
+      '0x145540d931f182fef76467dd8074c9839aea126852d90d18e1556fcbbd1208b6',
+      '0x1afb3a57211ceff8f6781757821847e3ddae73f64e78ec8cd9349914ad985475',
+      '0x4a65b4ff7ba8f4b538895ee35959f982a95f0db7e2a202ec989d261ea927286a',
+    ])
+    expect(c.servers.every((x) => x.aggregatorUrl === undefined)).toBe(true)
+    expect(c.threshold).toBe(2)
+    expect(c.custody).toBe('independent')
+  })
+
+  it('never configures an API key, even when one is supplied (it would ship in the bundle)', async () => {
+    const { sealConfig } = await import('../src/config.js')
+    for (const net of ['testnet', 'mainnet']) {
+      const NET = net.toUpperCase()
+      const c = sealConfig(net, { [`VITE_SEAL_AGGREGATOR_API_KEY_${NET}`]: 'leaked' })
+      for (const server of c.servers) {
+        expect(server).not.toHaveProperty('apiKey')
+        expect(server).not.toHaveProperty('apiKeyName')
+      }
+    }
+  })
+
+  it('reports operator custody and rejects an unknown custody value', async () => {
+    const { sealConfig } = await import('../src/config.js')
+    const op = sealConfig('testnet', { VITE_SEAL_KEY_CUSTODY_TESTNET: 'operator' })
+    expect(op.custody).toBe('operator')
+    expect(op.problem).toBeNull()
+    expect(sealConfig('testnet', {}).custody).toBe('independent')
+    const bad = sealConfig('testnet', { VITE_SEAL_KEY_CUSTODY_TESTNET: 'mine' })
+    expect(bad.problem).toMatch(/VITE_SEAL_KEY_CUSTODY_TESTNET must be "independent" or "operator"/)
   })
 })

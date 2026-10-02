@@ -7,7 +7,7 @@ import { computed } from 'vue'
 import { createDefaultRegistry, type PolicyRegistry } from '@meddleware/seal-client'
 import type { SealController } from '@meddleware/seal-client/controller'
 import { getSuiClient } from './wallet.js'
-import { activeConfig, type SealConfig } from './config.js'
+import { activeConfig, aggregatorUrlFor, type SealConfig } from './config.js'
 
 const registries = new Map<string, PolicyRegistry>()
 const controllers = new Map<string, SealController>()
@@ -50,6 +50,50 @@ export async function getSealController(): Promise<SealController> {
     controllers.set(cfg.network, c)
   }
   return c
+}
+
+/** A ciphertext re-sealed onto the active network's key servers. */
+export interface Resealed {
+  id: string
+  ciphertext: Uint8Array
+}
+
+/**
+ * Re-seal `ciphertext` (identity `id`, sealed under policy `policyType`) onto the active network's
+ * current key servers: decrypt with a controller for the servers its header records, then encrypt
+ * the plaintext under `encryptParams` with the current controller. Returns `null` when it is already
+ * sealed to the current servers. The plaintext never leaves this function.
+ *
+ * @throws {Error} if sealing is unavailable, the ciphertext belongs to another policy package, or the
+ *   original servers cannot release the key.
+ */
+export async function resealCiphertext(
+  policyType: string,
+  decryptParams: Record<string, unknown>,
+  encryptParams: Record<string, unknown>,
+  id: string,
+  ciphertext: Uint8Array,
+  opts: { address: string; signPersonalMessage: (message: Uint8Array) => Promise<{ signature: string }> },
+): Promise<Resealed | null> {
+  const cfg = activeConfig.value
+  if (cfg.problem || !cfg.seal) throw new Error(cfg.problem ?? `Sealed Storage is not available on ${cfg.network}.`)
+  const { SealController, describeCiphertext, sealedUnderServers } = await import('@meddleware/seal-client/controller')
+  const info = describeCiphertext(ciphertext)
+  if (sealedUnderServers(info, cfg.servers, cfg.threshold)) return null
+  const original = new SealController(
+    {
+      suiClient: getSuiClient(),
+      originalId: cfg.seal.originalId,
+      publishedAt: cfg.seal.publishedAt,
+      policyConfigId: cfg.seal.policyConfigId,
+      threshold: info.threshold,
+      serverConfigs: info.servers.map((s) => ({ ...s, aggregatorUrl: aggregatorUrlFor(cfg.network, s.objectId) })),
+    },
+    registryFor(cfg),
+  )
+  const plaintext = await original.decrypt(policyType, decryptParams, id, ciphertext, opts)
+  original.clearSession()
+  return (await getSealController()).encrypt(policyType, encryptParams, plaintext)
 }
 
 /**

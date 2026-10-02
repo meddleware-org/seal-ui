@@ -21,10 +21,11 @@ function csv(v: string | undefined): string[] {
 }
 
 /**
- * Mysten key-server defaults. Testnet: the decentralized committee (via its aggregator) plus two
- * independent servers. Mainnet: the verified 5-of-8 committee behind the mainnet aggregator, which
- * needs an Enoki API key (`VITE_SEAL_AGGREGATOR_API_KEY_MAINNET`, a publishable client key scoped
- * to Seal — it is baked into the bundle). A committee counts as ONE server.
+ * Key-server defaults (workspace ADR-0002). Testnet: Mysten's decentralized committee (via its
+ * aggregator) plus Mysten's two Open-mode servers, threshold 2. Mainnet (D24): three keyless
+ * Open-mode servers run by independent operators — Overclock, NodeInfra, H2O Nodes — at threshold 2,
+ * so no single operator can decrypt and one may be down. No server needs an API key, so none is ever
+ * configured in the bundle. A committee behind an aggregator counts as ONE server.
  */
 const SERVER_DEFAULTS: Record<string, { ids: string[]; aggs: string[]; threshold: number }> = {
   testnet: {
@@ -37,9 +38,13 @@ const SERVER_DEFAULTS: Record<string, { ids: string[]; aggs: string[]; threshold
     threshold: 2,
   },
   mainnet: {
-    ids: ['0x686098f1439237fff9f36b99c7329683c22979d2005c2465cb891acb012a7595'],
-    aggs: ['https://seal-aggregator-mainnet.mystenlabs.com'],
-    threshold: 1,
+    ids: [
+      '0x145540d931f182fef76467dd8074c9839aea126852d90d18e1556fcbbd1208b6', // Overclock (Open)
+      '0x1afb3a57211ceff8f6781757821847e3ddae73f64e78ec8cd9349914ad985475', // NodeInfra (Open)
+      '0x4a65b4ff7ba8f4b538895ee35959f982a95f0db7e2a202ec989d261ea927286a', // H2O Nodes (Open)
+    ],
+    aggs: [],
+    threshold: 2,
   },
 }
 
@@ -69,6 +74,14 @@ export function thresholdError(threshold: number, servers: readonly { weight?: n
   return null
 }
 
+/**
+ * Who could decrypt content sealed on a network. `independent` (the default): key servers run by
+ * parties other than this app's operator, at a threshold no single one meets. `operator`: the
+ * operator's own key server is in use (the ADR-0002 fallback), so the operator could decrypt; the
+ * view says so.
+ */
+export type KeyCustody = 'independent' | 'operator'
+
 /** Everything sealing needs on one network. */
 export interface SealConfig {
   network: string
@@ -78,6 +91,7 @@ export interface SealConfig {
   accessGateOriginalId: string
   servers: KeyServerConfig[]
   threshold: number
+  custody: KeyCustody
   walrusPublisher: string
   walrusAggregator: string
   /** Why sealing is unavailable on this network, or null when it is configured. */
@@ -96,22 +110,24 @@ export function sealConfig(net: string, envSource: EnvSource = env): SealConfig 
   const envAggs = csv(netEnv('VITE_SEAL_AGGREGATOR_URLS'))
   const ids = envIds.length ? envIds : (defaults?.ids ?? [])
   const aggs = envAggs.length ? envAggs : (defaults?.aggs ?? [])
-  const apiKey = netEnv('VITE_SEAL_AGGREGATOR_API_KEY')
-  const servers: KeyServerConfig[] = ids.map((objectId, i) => {
-    const aggregatorUrl = aggs[i]
-    return aggregatorUrl && apiKey
-      ? { objectId, weight: 1, aggregatorUrl, apiKeyName: 'X-API-Key', apiKey }
-      : { objectId, weight: 1, aggregatorUrl }
-  })
+  // Never an API key: a key in a VITE_* var ships in the public bundle (seal-ui audit I5).
+  const servers: KeyServerConfig[] = ids.map((objectId, i) => ({ objectId, weight: 1, aggregatorUrl: aggs[i] }))
   const rawThreshold = netEnv('VITE_SEAL_THRESHOLD')
   const threshold = rawThreshold ? Number(rawThreshold) : (defaults?.threshold ?? 1)
 
+  const rawCustody = netEnv('VITE_SEAL_KEY_CUSTODY') ?? 'independent'
+  const custody: KeyCustody = rawCustody === 'operator' ? 'operator' : 'independent'
+  const custodyError =
+    rawCustody === 'independent' || rawCustody === 'operator'
+      ? null
+      : `VITE_SEAL_KEY_CUSTODY_${NET} must be "independent" or "operator"; got "${rawCustody}"`
+
   const walrus = WALRUS_DEFAULTS[net]
-  const problem = !seal
+  const problem = custodyError ?? (!seal
     ? `Sealed Storage is not available on ${net}: no seal_policies deployment is recorded for it.`
     : servers.length === 0
       ? `Sealed Storage is not configured on ${net}: set VITE_SEAL_SERVER_OBJECT_IDS_${NET} (and VITE_SEAL_AGGREGATOR_URLS_${NET} for a committee).`
-      : thresholdError(threshold, servers)
+      : thresholdError(threshold, servers))
 
   return {
     network: net,
@@ -119,10 +135,25 @@ export function sealConfig(net: string, envSource: EnvSource = env): SealConfig 
     accessGateOriginalId: accessGate?.originalId ?? '',
     servers,
     threshold,
+    custody,
     walrusPublisher: netEnv('VITE_WALRUS_PUBLISHER') || walrus?.publisher || '',
     walrusAggregator: netEnv('VITE_WALRUS_AGGREGATOR') || walrus?.aggregator || '',
     problem,
   }
+}
+
+/**
+ * The aggregator URL for a committee server on `net`, from the current configuration or the
+ * defaults (independent servers publish their URL on-chain and need none). Used to reach the servers
+ * an older ciphertext was sealed to.
+ */
+export function aggregatorUrlFor(net: string, objectId: string, envSource: EnvSource = env): string | undefined {
+  const norm = (id: string) => `0x${id.toLowerCase().replace(/^0x/, '').padStart(64, '0')}`
+  const fromConfig = sealConfig(net, envSource).servers.find((s) => norm(s.objectId) === norm(objectId))
+  if (fromConfig?.aggregatorUrl) return fromConfig.aggregatorUrl
+  const d = SERVER_DEFAULTS[net]
+  const i = d ? d.ids.findIndex((id) => norm(id) === norm(objectId)) : -1
+  return i >= 0 ? d?.aggs[i] : undefined
 }
 
 /** The configuration for the active network. */

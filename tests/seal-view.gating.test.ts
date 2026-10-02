@@ -6,11 +6,11 @@ import { shallowMount } from '@vue/test-utils'
 // configuration and assert the gating (the "not available / not configured" notice) without a
 // wallet, key-server committee, or Walrus endpoint. shallowMount stubs child components
 // (WalletGuard, AppTabNav) but renders SealView's own template, where the gate lives.
-async function mountWith(problem: string | null, network = 'testnet') {
+async function mountWith(problem: string | null, network = 'testnet', custody: 'independent' | 'operator' = 'independent') {
   vi.resetModules()
   vi.doMock('../src/config.js', () => ({
     network: ref(network),
-    activeConfig: computed(() => ({ network, problem, seal: problem ? null : { originalId: '0x1', publishedAt: '0x1' } })),
+    activeConfig: computed(() => ({ network, problem, custody, seal: problem ? null : { originalId: '0x1', publishedAt: '0x1' } })),
   }))
   vi.doMock('../src/wallet.js', () => ({
     useWallet: () => ({
@@ -50,5 +50,16 @@ describe('SealView network gating', () => {
   it('hides the notice when configured', async () => {
     const w = await mountWith(null)
     expect(w.find('.notice--warn').exists()).toBe(false)
+  })
+
+  it('warns that the operator could decrypt when its own key server is in use', async () => {
+    const w = await mountWith(null, 'mainnet', 'operator')
+    expect(w.find('.notice--warn').exists()).toBe(true)
+    expect(w.text()).toContain("run by this site's operator, who could therefore decrypt it")
+  })
+
+  it('shows no custody notice for independent key servers', async () => {
+    const w = await mountWith(null, 'mainnet', 'independent')
+    expect(w.text()).not.toContain('could therefore decrypt')
   })
 })

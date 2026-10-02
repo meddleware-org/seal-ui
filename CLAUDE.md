@@ -58,7 +58,7 @@ The network is wallet-adapter's shared runtime selector (the standalone `main.ts
 `VITE_NETWORK`). Sealing is enabled while `activeConfig.problem` is null, which needs:
 
 - a `seal_policies` deployment recorded for the network (in seal-client's `deployments`);
-- a key-server committee (Mysten defaults on testnet and mainnet, or `VITE_SEAL_SERVER_OBJECT_IDS_{NET}`);
+- key servers (defaults on testnet and mainnet, or `VITE_SEAL_SERVER_OBJECT_IDS_{NET}`);
 - a valid threshold.
 
 Otherwise the view shows the reason and disables sealing. A network switch clears what was shown
@@ -66,9 +66,11 @@ for the previous network, and registries and controllers are kept per network.
 
 Mainnet specifics (2026-09-29, workspace grounding log D4):
 
-- The default committee is the verified Mysten mainnet committee behind the mainnet aggregator,
-  at threshold 1 (a committee counts as one server). That aggregator needs
-  `VITE_SEAL_AGGREGATOR_API_KEY_MAINNET` (an Enoki key).
+- The default key servers are three keyless Open-mode servers run by independent operators —
+  Overclock, NodeInfra, H2O Nodes — at threshold 2 (workspace ADR-0002, D24): no single operator can
+  decrypt and one may be down. `config.ts` never configures an API key; a test enforces it.
+- `VITE_SEAL_KEY_CUSTODY_{NET}=operator` marks the self-hosted fallback (the operator could decrypt);
+  the view then shows that notice. Any other value than `independent`/`operator` disables sealing.
 - There is no default mainnet Walrus publisher; storing fails with a clear error until
   `VITE_WALRUS_PUBLISHER_MAINNET` names an operator-run publisher.
 - A threshold outside `[1, total server weight]` disables sealing on that network with the reason.

@@ -23,8 +23,11 @@ treated as high severity:
    active network has a recorded `seal_policies` deployment, a configured committee and a valid
    threshold; a partially configured network never attempts it. Package ids come from the published
    `deployments`, never from build configuration.
-3. **No private key material is a `VITE_*` value.** Committee object ids and aggregator URLs are
-   public config; no secret is inlined into the bundle.
+3. **No private key material is a `VITE_*` value.** Key-server object ids and aggregator URLs are
+   public config; no secret is inlined into the bundle, and no key server is configured with an API
+   key (the mainnet servers are keyless Open-mode servers, workspace ADR-0002).
+3a. **Custody is disclosed.** When the operator's own key server is in use
+   (`VITE_SEAL_KEY_CUSTODY_{NET}=operator`), the view states that the operator could decrypt.
 4. **No dynamic HTML sinks.** Manifest fields (`label`/`params`/`policyType`) and policy-form inputs
    render as text; a downloaded manifest is parsed pollution-safe.
 

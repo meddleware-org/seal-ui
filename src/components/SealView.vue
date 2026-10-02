@@ -19,7 +19,7 @@ import {
 import { checkManifestForNetwork } from '../manifest-guard.js'
 import { WalletGuard } from '@meddleware/wallet-adapter'
 import { useWallet, getSuiClient } from '../wallet.js'
-import { registry, getSealController, clearSealSessions } from '../seal.js'
+import { registry, getSealController, clearSealSessions, resealCiphertext } from '../seal.js'
 import { storeBlob, readBlob } from '../walrus.js'
 import { discoverSealedContent } from '../sealed-content.js'
 import { activeConfig, network } from '../config.js'
@@ -293,6 +293,67 @@ async function performDecrypt(): Promise<void> {
   }
 }
 
+// ── Re-seal onto the current key servers ─────────────────────────────────────
+// Content can only be decrypted by the key servers it was sealed to. Re-sealing decrypts it with
+// those servers and encrypts it again for the current ones, so it survives a change of providers
+// (workspace ADR-0002). The result is a new blob and manifest; the old ones keep needing the old
+// servers.
+async function performReseal(): Promise<void> {
+  errorMsg.value = null
+  status.value = null
+  const m = decManifest.value
+  const provider = decProvider.value
+  if (!m || !provider) {
+    errorMsg.value = 'Paste or upload a valid manifest.'
+    return
+  }
+  if (!account.value) {
+    errorMsg.value = 'Connect your wallet to re-seal.'
+    return
+  }
+  busy.value = true
+  try {
+    const encryptParams: Record<string, unknown> = { ...(m.params ?? {}) }
+    const decryptParams: Record<string, unknown> = { ...encryptParams }
+    for (const f of provider.describe().decryptFields) {
+      const v = decValues.value[f.name]
+      if (v !== undefined && v !== '') decryptParams[f.name] = coerce(f.kind, v)
+      if (f.required && (decryptParams[f.name] === undefined || decryptParams[f.name] === '')) {
+        throw new Error(`${f.label} is required.`)
+      }
+    }
+    status.value = 'Fetching ciphertext from Walrus…'
+    const ciphertext = await readBlob(m.blobId)
+    status.value = 'Requesting keys from the original key servers — approve the signature in your wallet…'
+    const resealed = await resealCiphertext(m.policyType, decryptParams, encryptParams, m.id, ciphertext, {
+      address: account.value.address,
+      signPersonalMessage,
+    })
+    if (!resealed) {
+      status.value = 'This content is already sealed to the current key servers; nothing to do.'
+      return
+    }
+    status.value = 'Storing the re-sealed ciphertext on Walrus…'
+    const blobId = await storeBlob(resealed.ciphertext, { sendObjectTo: account.value.address })
+    manifest.value = {
+      policyType: m.policyType,
+      id: resealed.id,
+      blobId,
+      network: network.value,
+      params: encryptParams,
+      label: m.label,
+    }
+    publishDigest.value = null
+    status.value = 'Re-sealed. Download the new manifest; the old one still needs the old key servers.'
+    tab.value = 'encrypt'
+    encStep.value = 2
+  } catch (e) {
+    errorMsg.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    busy.value = false
+  }
+}
+
 // ── Publish an on-chain discovery pointer (nft-gate content only) ─────────────
 const publishDigest = ref<string | null>(null)
 
@@ -394,6 +455,10 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
     <UiToolIntro>Client-side encrypted, access-gated storage on Walrus + Sui.</UiToolIntro>
 
     <p v-if="activeConfig.problem" class="notice notice--warn">{{ activeConfig.problem }}</p>
+    <p v-else-if="activeConfig.custody === 'operator'" class="notice notice--warn">
+      On {{ activeConfig.network }}, content is sealed with a key server run by this site's operator,
+      who could therefore decrypt it. Do not seal anything you would not share with the operator.
+    </p>
 
     <!-- The tab list and every panel always render (each tab controls a live panel); the wallet
          prompt replaces only a panel's content until a wallet is connected. Panels stay mounted
@@ -624,6 +689,15 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
           <button type="button" class="link" @click="decStep--">Back</button>
           <button type="button" class="primary" :disabled="busy || !decProvider" @click="performDecrypt">
             {{ busy ? 'Working…' : 'Decrypt' }}
+          </button>
+        </div>
+        <p class="muted muted--spaced">
+          Moving to new key servers? Re-sealing decrypts this content with the servers it was sealed to
+          and seals it again for the current ones, producing a new manifest.
+        </p>
+        <div class="nav-row">
+          <button type="button" class="link" :disabled="busy || disabled || !decProvider" @click="performReseal">
+            Re-seal for the current key servers
           </button>
         </div>
       </template>
