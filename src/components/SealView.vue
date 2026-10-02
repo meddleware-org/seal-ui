@@ -312,7 +312,7 @@ async function performPublish(): Promise<void> {
     status.value = 'Publishing on-chain pointer — approve the transaction in your wallet…'
     const seal = activeConfig.value.seal
     if (!seal) throw new Error(activeConfig.value.problem ?? 'Sealed Storage is not available on this network.')
-    const tx = buildPublishSealedContentTransaction(seal.publishedAt, {
+    const tx = buildPublishSealedContentTransaction({ publishedAt: seal.publishedAt, policyConfigId: seal.policyConfigId }, {
       gateId: String(m.params.gateId),
       blobId: m.blobId,
       sealId: m.id,

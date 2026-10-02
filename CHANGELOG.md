@@ -3,6 +3,14 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.26] - 2026-10-02
+
+- Targets the version-gated `seal_policies` (testnet `0x61c4aa…`) through `@meddleware/seal-client`
+  0.0.11: the controller and the sealed-content publish pass the shared `PolicyConfig`.
+  `@meddleware/access-gate-client` `^0.0.2` (version-gated `access_gate` `0xa55789…`).
+- Testnet content sealed under the superseded `0x42cc18…` package (test data) no longer decrypts
+  here: its ciphertexts name that package, which the controller refuses.
+
 ## [0.0.25] - 2026-10-01
 
 - `@meddleware/walrus-client` range `>=0.0.21 <0.2.0` (was `^0.0.20`, an exact pin on 0.0.x), so a

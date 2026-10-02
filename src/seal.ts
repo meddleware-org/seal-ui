@@ -41,6 +41,7 @@ export async function getSealController(): Promise<SealController> {
         suiClient: getSuiClient(),
         originalId: cfg.seal.originalId,
         publishedAt: cfg.seal.publishedAt,
+        policyConfigId: cfg.seal.policyConfigId,
         threshold: cfg.threshold,
         serverConfigs: cfg.servers,
       },
