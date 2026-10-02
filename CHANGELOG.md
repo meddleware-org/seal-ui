@@ -3,6 +3,11 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.28] - 2026-10-02
+
+- `@meddleware/walrus-client` 0.0.22 (relay challenge requests time out).
+- Ships the brand favicon (`/favicon.svg`); the old `/favicon.ico` link pointed at a missing file.
+
 ## [0.0.27] - 2026-10-02
 
 - **Mainnet key servers** (workspace ADR-0002, D24): three keyless Open-mode servers run by
