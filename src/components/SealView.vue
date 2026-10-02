@@ -460,6 +460,22 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
       who could therefore decrypt it. Do not seal anything you would not share with the operator.
     </p>
 
+    <details class="seal-trust">
+      <summary>What you should know before sealing</summary>
+      <ul>
+        <li>
+          Decryption needs {{ activeConfig.threshold }} of the configured key servers; that many servers together
+          could decrypt, and if fewer are online nobody can.
+        </li>
+        <li>
+          Who may decrypt is decided by the <code>seal_policies</code> package. Until its publisher makes it
+          immutable, an upgrade could change access to content already sealed.
+        </li>
+        <li>Once someone has decrypted an item, losing their pass does not take that access back.</li>
+        <li>Labels and the gate an item is sealed to are public; only the content is encrypted.</li>
+      </ul>
+    </details>
+
     <!-- The tab list and every panel always render (each tab controls a live panel); the wallet
          prompt replaces only a panel's content until a wallet is connected. Panels stay mounted
          (v-show) so each tab keeps its state. -->
@@ -816,4 +832,12 @@ pre.manifest {
 .discovered__blob { word-break: break-all; }
 .status { font-size: 0.85rem; margin-top: 0.5rem; }
 .disclaimer { margin-top: 2rem; }
+
+.seal-trust {
+  margin: 0 0 1rem;
+}
+.seal-trust ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
 </style>

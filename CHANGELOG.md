@@ -3,6 +3,14 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.30] - 2026-10-02
+
+- **What you should know before sealing** (always shown): the key-server threshold, that the
+  `seal_policies` package can still be upgraded until it is made immutable (changing access to sealed
+  content), that released keys cannot be taken back, and that labels and gates are public.
+- `@meddleware/seal-client` 0.0.14 (every policy verifies its identity layout; approve PTBs hold only
+  `seal_approve*` calls) and `@meddleware/walrus-client` 0.0.24 (blob reads capped at 100 MiB).
+
 ## [0.0.29] - 2026-10-02
 
 - `@meddleware/access-gate-client` 0.0.3 and `@meddleware/seal-client` 0.0.13: gate reads fail closed
