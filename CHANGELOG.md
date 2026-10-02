@@ -3,6 +3,11 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.29] - 2026-10-02
+
+- `@meddleware/access-gate-client` 0.0.3 and `@meddleware/seal-client` 0.0.13: gate reads fail closed
+  on a malformed object, and sealed-content discovery reads the indexer only over https.
+
 ## [0.0.28] - 2026-10-02
 
 - `@meddleware/walrus-client` 0.0.22 (relay challenge requests time out).
