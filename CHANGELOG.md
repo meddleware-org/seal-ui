@@ -3,6 +3,12 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.31] - 2026-10-03
+
+### Changed
+
+- seal-client 0.0.15, walrus-client 0.0.25, access-gate-client 0.0.4, ui 0.1.30, design-tokens 0.1.8.
+
 ## [0.0.30] - 2026-10-02
 
 - **What you should know before sealing** (always shown): the key-server threshold, that the
