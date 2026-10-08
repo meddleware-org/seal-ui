@@ -3,11 +3,11 @@ import { computed } from 'vue'
 
 // Discovery delegates to seal-client's listSealedContent (tested there); this checks the wrapper
 // passes the active deployment, the gate, the cap and the optional indexer.
-const { listSealedContent } = vi.hoisted(() => ({ listSealedContent: vi.fn() }))
+const { listSealedContent, gateOperators } = vi.hoisted(() => ({ listSealedContent: vi.fn(), gateOperators: vi.fn(async () => ['0xop']) }))
 
 async function load(cfg: Record<string, unknown>, indexer = '') {
   vi.resetModules()
-  vi.doMock('@meddleware/seal-client', () => ({ listSealedContent }))
+  vi.doMock('@meddleware/seal-client', () => ({ listSealedContent, gateOperators }))
   vi.doMock('../src/wallet.js', () => ({ getSuiClient: () => ({ client: true }) }))
   vi.doMock('../src/config.js', () => ({ activeConfig: computed(() => cfg), INDEXER_URL: indexer }))
   return import('../src/sealed-content.js')
@@ -23,7 +23,27 @@ describe('discoverSealedContent', () => {
     listSealedContent.mockResolvedValue({ pointers: [{ label: 'a' }], cursor: null, source: 'rpc' })
     const { discoverSealedContent, MAX_DISCOVERED } = await load({ network: 'testnet', seal: { originalId: '0x42', publishedAt: '0x43' } })
     expect(await discoverSealedContent('0xgate')).toEqual([{ label: 'a' }])
-    expect(listSealedContent).toHaveBeenCalledWith({ client: true }, { originalId: '0x42', gateId: '0xgate', limit: MAX_DISCOVERED, indexer: undefined })
+    expect(listSealedContent).toHaveBeenCalledWith({ client: true }, { originalId: '0x42', gateId: '0xgate', limit: MAX_DISCOVERED, indexer: undefined, publishers: ['0xop'] })
+  })
+
+  it('lists only the gate operators\' pointers by default, and everyone\'s only on request', async () => {
+    listSealedContent.mockResolvedValue({ pointers: [], cursor: null, source: 'rpc' })
+    const { discoverSealedContent } = await load({ network: 'testnet', accessGateOriginalId: '0xa5', seal: { originalId: '0x42', publishedAt: '0x43' } })
+    await discoverSealedContent('0xgate')
+    expect(gateOperators).toHaveBeenCalledWith({ client: true }, '0xgate', '0xa5')
+    expect(listSealedContent.mock.calls[0][1].publishers).toEqual(['0xop'])
+    listSealedContent.mockClear()
+    gateOperators.mockClear()
+    await discoverSealedContent('0xgate', { includeOthers: true })
+    expect(gateOperators).not.toHaveBeenCalled()
+    expect(listSealedContent.mock.calls[0][1]).not.toHaveProperty('publishers')
+  })
+
+  it('fails closed when the operators cannot be resolved', async () => {
+    gateOperators.mockRejectedValueOnce(new Error('not a Gate'))
+    const { discoverSealedContent } = await load({ network: 'testnet', accessGateOriginalId: '0xa5', seal: { originalId: '0x42', publishedAt: '0x43' } })
+    await expect(discoverSealedContent('0xgate')).rejects.toThrow('not a Gate')
+    expect(listSealedContent).not.toHaveBeenCalled()
   })
 
   it('reads the indexer for the active network when configured', async () => {

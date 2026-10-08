@@ -394,6 +394,8 @@ const unlockGateId = ref('')
 const discovered = ref<SealedContentPointer[]>([])
 const unlockNftId = ref('')
 const unlockSoulbound = ref(false)
+// Seal gives confidentiality, not authenticity: by default only the gate operator's pointers are listed.
+const includeOthers = ref(false)
 
 async function performDiscover(): Promise<void> {
   errorMsg.value = null
@@ -405,7 +407,7 @@ async function performDiscover(): Promise<void> {
   busy.value = true
   try {
     status.value = 'Searching for sealed content…'
-    discovered.value = await discoverSealedContent(unlockGateId.value)
+    discovered.value = await discoverSealedContent(unlockGateId.value, { includeOthers: includeOthers.value })
     status.value = discovered.value.length
       ? `Found ${discovered.value.length} item(s).`
       : 'No sealed content published for this gate.'
@@ -621,6 +623,10 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
           <button v-if="!unlockGateManual" type="button" class="link link--spaced" @click="unlockGateManual = true; unlockGateId = ''">Enter ID manually</button>
           <button v-else type="button" class="link link--spaced" @click="unlockGateManual = false; unlockGateId = ''">← Back to picker</button>
         </template>
+        <label class="field checkbox">
+          <input type="checkbox" v-model="includeOthers" />
+          <span>Also list content published by other addresses (unverified: anyone can publish to a gate)</span>
+        </label>
         <button type="button" class="primary" :disabled="busy || !unlockGateId" @click="performDiscover">
           {{ busy ? 'Working…' : 'Find sealed content' }}
         </button>
@@ -642,6 +648,7 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
 
           <article v-for="item in discovered" :key="item.contentId" class="card discovered">
             <h3 class="discovered__title">{{ item.label || '(untitled)' }}</h3>
+            <p v-if="includeOthers" class="muted muted--sm">Published by {{ item.publisher }}: decrypting proves it was sealed to this gate, not who wrote it.</p>
             <p class="muted discovered__blob">blob {{ item.blobId }}</p>
             <button type="button" class="primary" :disabled="busy || !account || !unlockNftId" @click="performUnlock(item)">
               Unlock &amp; download

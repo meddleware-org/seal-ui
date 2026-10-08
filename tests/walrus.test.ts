@@ -38,6 +38,12 @@ describe('storeBlob', () => {
     expect(url.searchParams.get('send_object_to')).toBe(OWNER)
   })
 
+  it('refuses an already-certified answer: the user would own no Blob object', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ alreadyCertified: { blobId: 'B2', endEpoch: 9 } })))
+    const { storeBlob } = await load({})
+    await expect(storeBlob(new Uint8Array([1]), { sendObjectTo: OWNER })).rejects.toThrow(/already stored/)
+  })
+
   it('fails clearly when the network has no publisher (mainnet has no public one)', async () => {
     const { storeBlob } = await load({ network: 'mainnet', walrusPublisher: '' })
     await expect(storeBlob(new Uint8Array([1]), { sendObjectTo: OWNER })).rejects.toThrow(/VITE_WALRUS_PUBLISHER_MAINNET/)

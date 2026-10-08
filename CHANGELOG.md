@@ -3,6 +3,12 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.32] - 2026-10-08
+
+### Changed
+
+- Operator-only discovery by default (opt-in for other publishers), refuse non-linked gates when sealing, publisher result handling; seal-client 0.0.16, access-gate-client 0.0.6, walrus-client 0.0.26
+
 ## [0.0.31] - 2026-10-03
 
 ### Changed

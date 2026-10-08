@@ -89,6 +89,10 @@ Mainnet specifics (2026-09-29, workspace grounding log D4):
 - Discovery is seal-client's `listSealedContent`: `SealedContentPublished` decoded from BCS at the
   deployment's original id, newest first with a page budget, gate ids compared normalised; from
   the read-indexer when `VITE_INDEXER_URL` is set (display data; falls back to the full node).
+- Seal gives confidentiality, not authenticity, so discovery lists only the gate operator's pointers
+  by default (`gateOperators` -> `listSealedContent({ publishers })`); the Unlock tab has an explicit
+  opt-in for other publishers, labelled unverified. `encrypt` refuses a gate that is not a `Gate` of
+  the linked `access_gate` package (`accessGateOriginalId`).
 - The discovery pointer is built by seal-client (`buildPublishSealedContentTransaction`) at the
   latest `publishedAt`; this app constructs no transactions itself.
 - Download filenames derived from on-chain labels are sanitised.

@@ -44,6 +44,8 @@ export async function getSealController(): Promise<SealController> {
         policyConfigId: cfg.seal.policyConfigId,
         threshold: cfg.threshold,
         serverConfigs: cfg.servers,
+        // Sealing to a gate of another access_gate package can never be unlocked: refuse it.
+        accessGateOriginalId: cfg.accessGateOriginalId || undefined,
       },
       registryFor(cfg),
     )
