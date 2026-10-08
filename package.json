@@ -57,6 +57,7 @@
     "@meddleware/wallet-adapter": ">=0.0.12 <0.2.0"
   },
   "devDependencies": {
+    "@meddleware/eslint-config": "^0.0.1",
     "@meddleware/wallet-adapter": "^0.0.13",
     "@types/node": "~24.12.2",
     "@vitejs/plugin-vue": "^6.0.9",

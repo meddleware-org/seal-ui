@@ -8,6 +8,12 @@ and later decrypt it if the on-chain policy allows.
 
 ## Architectural invariants
 
+- **No on-chain logic here — extend the domain client.** `suiBoundary()` from
+  `@meddleware/eslint-config` (the last entry in `eslint.config.ts`) forbids, in `src/` outside
+  `src/wallet.ts`: value imports of `@mysten/sui/{grpc,client,transactions}` (type-only imports are
+  fine; `@mysten/sui/jsonRpc` is banned outright), building transactions and chain reads. URL
+  bindings on native elements must go through `safeHref`, `safeIcon`, `suiExplorerUrl` or
+  `walruscanBlobUrl`. Do not disable it — move the logic into the domain client instead.
 - **Thin app, on-chain truth.** No policy logic here — all of it is in `@meddleware/seal-client`
   (the registry + `SealController`) and the `seal_policies` Move package. This app only wires config,
   wallet, and storage.
