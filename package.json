@@ -1,6 +1,6 @@
 {
   "name": "@meddleware/seal-ui",
-  "version": "0.0.36",
+  "version": "0.0.37",
   "homepage": "https://docs.meddleware.co.uk/blockchain/sui/sealed-storage/",
   "description": "Standalone Vue 3 SPA for Sealed Storage — client-side Seal encryption + access-gated, decentralised Walrus storage on Sui.",
   "author": "MeddleWare <dev@meddleware.co.uk>",
@@ -38,7 +38,9 @@
     "lint:css": "stylelint \"src/**/*.{css,vue}\"",
     "lint:js": "eslint .",
     "lint": "npm run lint:css && npm run lint:js && npm run lint:html",
-    "lint:html": "html-validate \"src/**/*.vue\""
+    "lint:html": "html-validate \"src/**/*.vue\"",
+    "licenses": "node scripts/third-party-licenses.mjs",
+    "check:licenses": "node scripts/third-party-licenses.mjs --check"
   },
   "publishConfig": {
     "access": "public"
