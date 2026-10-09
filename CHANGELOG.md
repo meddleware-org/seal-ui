@@ -3,6 +3,12 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.36] - 2026-10-09
+
+### Changed
+
+- Image base static-server 0.1.7 (Go 1.26.9) and an explicit non-root USER; merged tooling updates; walrus-client ^0.0.27 (owned blobs list again)
+
 ## [0.0.35] - 2026-10-09
 
 ### Changed
