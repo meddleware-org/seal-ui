@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { createDefaultRegistry } from '@meddleware/seal-client'
 import { checkManifestForNetwork } from '../src/manifest-guard.js'
 
 const valid = {
@@ -39,5 +40,26 @@ describe('checkManifestForNetwork', () => {
     const r = checkManifestForNetwork(JSON.stringify({ policyType: 'x' }), 'testnet')
     expect(r.manifest).toBeNull()
     expect(r.error).toBeTruthy()
+  })
+
+  describe('with the network policy registry', () => {
+    const registry = createDefaultRegistry('0x2')
+
+    it('accepts a manifest whose policy and params the registry understands', () => {
+      const r = checkManifestForNetwork(JSON.stringify(valid), 'testnet', registry)
+      expect(r.error).toBeNull()
+      expect(r.manifest?.policyType).toBe('nft-gate')
+    })
+
+    it('rejects an unregistered policy type before any transaction is built', () => {
+      const r = checkManifestForNetwork(JSON.stringify({ ...valid, policyType: 'mystery' }), 'testnet', registry)
+      expect(r.manifest).toBeNull()
+      expect(r.error).toBeTruthy()
+    })
+
+    it('reports a network mismatch before a policy error', () => {
+      const r = checkManifestForNetwork(JSON.stringify({ ...valid, policyType: 'mystery', network: 'mainnet' }), 'testnet', registry)
+      expect(r.error).toMatch(/mainnet/)
+    })
   })
 })

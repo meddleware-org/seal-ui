@@ -3,6 +3,12 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.33] - 2026-10-09
+
+### Changed
+
+- Manifest check validates the policy type and params against the network's registry (seal-client 0.0.19 `parseSealedManifest(text, registry)`); depends on access-gate-client ^0.0.8, seal-client ^0.0.19, ui ^0.1.31, design-tokens ^0.1.9, eslint-config ^0.0.2
+
 ## [0.0.32] - 2026-10-08
 
 ### Changed

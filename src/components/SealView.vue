@@ -242,7 +242,7 @@ const decValues = ref<Record<string, string | boolean>>({})
 // AND enforce that it targets the network this app is built for — a manifest sealed on another
 // network references a package + committee that don't exist here and can never decrypt. The
 // `decManifestError` is surfaced next to the input so a rejection explains itself.
-const decCheck = computed(() => checkManifestForNetwork(decManifestText.value, network.value))
+const decCheck = computed(() => checkManifestForNetwork(decManifestText.value, network.value, registry.value))
 const decManifest = computed<SealedManifest | null>(() => decCheck.value.manifest)
 const decManifestError = computed<string | null>(() => decCheck.value.error)
 const decProvider = computed(() =>
