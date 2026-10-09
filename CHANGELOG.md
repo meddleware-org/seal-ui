@@ -3,6 +3,12 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.34] - 2026-10-09
+
+### Changed
+
+- Image base moved to static-server 0.1.6 (OpenRoot, dotfile refusal)
+
 ## [0.0.33] - 2026-10-09
 
 ### Changed

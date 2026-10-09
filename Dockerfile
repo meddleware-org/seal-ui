@@ -66,7 +66,7 @@ ENV VITE_NETWORK=${VITE_NETWORK} \
 RUN npm run build
 
 # ── runtime stage ─────────────────────────────────────────────────────────────
-FROM quay.io/meddleware-org/static-server:0.1.3@sha256:664e1c460b4558e20bf3f1b6b2a7ef5e914392edc0a4a125867d6fa822ff92e5
+FROM quay.io/meddleware-org/static-server:0.1.6@sha256:be51c4ee9c80fbbeda1f546efa918a72628388bd0fac0f52876e8234b51275c0
 ARG CSP
 ENV CONTENT_SECURITY_POLICY="${CSP}"
 
