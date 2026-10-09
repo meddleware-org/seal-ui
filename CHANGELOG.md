@@ -3,6 +3,12 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.35] - 2026-10-09
+
+### Changed
+
+- Depends on wallet-adapter ^0.0.17 (chain-id check, look-alike wallet warning, single local-URL rule)
+
 ## [0.0.34] - 2026-10-09
 
 ### Changed
