@@ -26,16 +26,16 @@ Not triggered: AUTH (no credential is held or issued; the SessionKey is seal-cli
 **Hosting:** container image on static-server (CSP and HSTS from the server); no static-host `_headers` file
 **Embedding hosts:** the dashboard (`SealView`, scoped styles, no shell chrome)
 **VITE_\* inventory:** `VITE_NETWORK` (testnet|mainnet, baked, selects the network only), `VITE_SEAL_SERVER_OBJECT_IDS_{NET}` / `VITE_SEAL_AGGREGATOR_URLS_{NET}` / `VITE_SEAL_THRESHOLD_{NET}` / `VITE_SEAL_KEY_CUSTODY_{NET}` (committee, per network), `VITE_WALRUS_PUBLISHER_{NET}` / `VITE_WALRUS_AGGREGATOR_{NET}` (storage hosts), `VITE_WALRUS_EPOCHS`, `VITE_WALRUS_MAX_UPLOAD_BYTES` (limits), `VITE_INDEXER_URL` (discovery read), `VITE_DOCS_URL` / `VITE_DEV_URL` (footer links); all public, none secret, none selects an on-chain package id; `.env.example` lists them all
-**Images:** deployed `quay.io/meddleware-org/seal-ui:0.0.37@sha256:7e919894…1b86`; 0.0.38 builds on release (Docker Hub mirror; cosign keyless, SPDX SBOM attestation, build provenance; verified 2026-10-09, `verify-digests.sh` 16/16)
+**Images:** `quay.io/meddleware-org/seal-ui:0.0.38@sha256:a000ba2e460ab839d1dbefecec43057518a1a1d0670fdc04a49d9c431419d174` (Docker Hub mirror, same digest; cosign keyless signature verified 2026-10-18 against the workflow-anchored identity, `verify-digests.sh` 16/16; SPDX SBOM attestation, build provenance). Superseded 0.0.37 was `sha256:7e919894…1b86`
 **Base images:** build `node:24-slim@sha256:0e0ff40c…f9b6`; runtime `quay.io/meddleware-org/static-server:0.1.8@sha256:e32cf42b…4000`
 **Runtime user:** `USER 65534:65534`   **Runtime FS:** read-only root, no writable mounts
 **Deployed by:** `post-bootstrap/seal-ui/overlays/default`; digest from `config/images.yaml`
 **Build args:** `CSP`, `VITE_NETWORK` and the `VITE_SEAL_*`, `VITE_WALRUS_*`, `VITE_INDEXER_URL` variables above — none secret, none a test switch (F15: the two public values are passed from a repository variable, falling back to the existing secret)
-**Deployment status:** npm v0.0.37 (2026-10-09); image `quay.io/meddleware-org/seal-ui` serving `sui-seal.meddleware.co.uk` at 0.0.37 (`sha256:7e919894…`, deployed 2026-10-09; the live bundle carries `seal_policies` `0x0c8f7349…`, `PolicyConfig` `0xee0403ba…`, `access_gate` `0xd7ddaa94…` and no superseded id); embedded in dashboard 0.1.84
-**Review date:** 2026-09-18 (first pass) · re-verified 2026-10-02 · re-verified 2026-10-09 · fix wave 2026-10-18
+**Deployment status:** npm v0.0.38 (2026-10-18); image `quay.io/meddleware-org/seal-ui` serving `sui-seal.meddleware.co.uk` at 0.0.38 (`sha256:a000ba2e…d174`; release tag `v0.0.38` = `907df8d`; released, signature verified and deployed 2026-10-18, rollout succeeded; 0.0.37 `sha256:7e919894…` was deployed 2026-10-09; the live bundle carries `seal_policies` `0x0c8f7349…`, `PolicyConfig` `0xee0403ba…`, `access_gate` `0xd7ddaa94…` and no superseded id, checked 2026-10-18; live headers re-checked 2026-10-18); embedded in dashboard 0.1.85
+**Review date:** 2026-09-18 (first pass) · re-verified 2026-10-02 · re-verified 2026-10-09 · fix wave 2026-10-18 (0.0.38, released and deployed)
 **Reviewer:** Internal review
 **Severity ceiling:** Medium — confidentiality comes from Seal and the on-chain policy; the app chooses the policy, identity and storage and presents what users are sealing to, so a defect can mislead or deny, not disclose on its own.
-**Status:** fix wave 2026-10-18 (0.0.38); re-verified 2026-10-09
+**Status:** fix wave 2026-10-18 (0.0.38; released and deployed 2026-10-18, signature verified, rollout succeeded); re-verified 2026-10-09
 
 ---
 
@@ -237,7 +237,7 @@ tests, F9); the public job runs Trivy on the pushed digest (CRITICAL/HIGH, fixab
 before `cosign sign`, then an SPDX SBOM attestation and build provenance for quay.io and Docker Hub, with
 no `continue-on-error`; the Dockerfile runs `npm run licenses` and copies `package-lock.json` to
 `/usr/share/doc/seal-ui/`; `/THIRD_PARTY_LICENSES` returns HTTP 200 on the live site and CI runs
-`check:licenses`; the runtime base is static-server 0.1.7 (Go 1.26.9) with an explicit
+`check:licenses`; the runtime base is static-server 0.1.7 (Go 1.26.9) at the 2026-10-09 review (0.1.8 in 0.0.38) with an explicit
 `USER 65534:65534`; the pod sets `automountServiceAccountToken: false`, `runAsNonRoot` uid 65534,
 read-only root, no privilege escalation, all capabilities dropped, `RuntimeDefault` seccomp, probes and
 limits, and a default-deny NetworkPolicy with an ingress allowance; the digest is identical in
@@ -425,7 +425,7 @@ through `NPM_PUBLISH`).
 **Impact:** a workflow added by someone with write access could sign an image the check would accept.
 **Remediation / evidence:** the repository is the signing boundary; anchoring to
 `docker-publish.yml@refs/tags/v*` is a `COSIGN_IDENTITY_REGEXP` override in the workspace script. The
-deployed digest verified 2026-10-09 (16/16).
+deployed digests verified 2026-10-09 (0.0.37) and 2026-10-18 (0.0.38), 16/16 both times; the 2026-10-18 run used the workflow-anchored identity `docker-publish.yml@refs/tags/v*`, which is narrower than the repository-wide check described here (disposition left to the workspace audit).
 
 ### F19 — Self-hosted registry mirror and registry credentials
 
@@ -576,8 +576,8 @@ stage copies `dist` and the lockfile only; `USER 65534:65534`; no secret in any 
 args are public configuration and the CSP); production sourcemaps are not emitted (Vite default); the
 deployment is read-only root, `runAsNonRoot` uid 65534, no privilege escalation, all capabilities
 dropped, `RuntimeDefault` seccomp, `automountServiceAccountToken: false`, readiness and liveness probes on
-`/`, requests 5m/16Mi and limits 100m/48Mi; digest `sha256:7e919894…` in both `config/images.yaml` and the
-overlay; cosign signature verified 2026-10-09 (F18). Not run: a Trivy *config* scan of the Dockerfile and
+`/`, requests 5m/16Mi and limits 100m/48Mi; digest `sha256:a000ba2e…d174` (0.0.38; 0.0.37 was `sha256:7e919894…`) in both `config/images.yaml` and the
+overlay; cosign signature verified 2026-10-09 (0.0.37) and 2026-10-18 (0.0.38) (F18). Not run: a Trivy *config* scan of the Dockerfile and
 manifests (F8).
 
 ### B.SC-1 ID-constant trace
@@ -628,7 +628,7 @@ suite is hermetic. `node-ci.yml` runs it, and both release workflows call that w
 
 ### pre-testnet
 
-- [x] deployed with digest pinning; CSP and HSTS verified live 2026-10-09; `SECURITY.md` present
+- [x] deployed with digest pinning; CSP and HSTS verified live 2026-10-09 and again on 0.0.38 on 2026-10-18 (`curl -I`: CSP, HSTS, `nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`); `SECURITY.md` present
 - [x] trust assumptions disclosed (F6)
 - [x] image: digest-pinned bases, non-root, restricted pod, probes and limits, deployed by digest, signed with SBOM and provenance, scanned before signing (F8)
 - [x] consumed IDs are the latest on-chain version — live bundle carries `0x0c8f7349…`, `0xee0403ba…` and `0xd7ddaa94…` only (B.SC-1)
@@ -710,3 +710,4 @@ None (ADR-0002 OQs decided: D24).
 - 2026-10-08 — Lens dates reconciled with the registry (`check-template-dates.mjs`): base 2026-10-08, and SUI_CLIENT/GO 2026-10-08 and TS 2026-10-03 where cited. The changes (AUTH/PLATFORM/MCP/DB registered, the GO token row moved to AUTH, JSR in trusted publishing, layered injection guards) alter no disposition here.
 - 2026-10-09 — re-verified at 0.0.37 (`1c9a03e`) against the code, the workflows, the manifests and the live site/bundle. Template dates now VUE/TS/IMG 2026-10-08; front matter gains the Seal, Walrus, VUE, TS and IMG fields. F1–F6 re-checked (F1 evidence extended to the registry check and the right test file; F2 residual write-side note; F6 still true under the republished package). New: F7 RESOLVED (operator-only discovery, linked and soulbound gates, registry-checked manifests; seal-client 0.0.16–0.0.19), F8 RESOLVED (image release gate, Trivy, notices, lockfile, `USER 65534`, static-server 0.1.7), F9 DEFERRED (the known `node-ci.yml` gap: no `npm test`, present here), F10–F15 DEFERRED (primary button contrast, in-flight operations, hidden storage lifetime, Confirm step omits the sealed-to parameters, TypeScript hygiene, repository hygiene), F16–F18 ACCEPTED-RISK, F19 DEFERRED (maintainer). The design-tokens F10 check (`--warning` as text) is clean here. The republished `seal_policies` `0x0c8f7349…` and `access_gate` `0xd7ddaa94…` are the only ids in the live bundle. Counts: 37/37 (was 31/31), audit gate 1 allowlisted / 0 open. Section D gates ticked with evidence; unticked: four next-patch items (F9–F13), F12 as a pre-mainnet gate, and the mainnet/maintainer items.
 - 2026-10-18 — fix wave at 0.0.38 (commit `4531836`). Dependencies: seal-client ^0.0.20, walrus-client ^0.0.28, access-gate-client ^0.0.9, design-tokens ^0.1.10 (ui, wallet-adapter and eslint-config already at their latest); runtime base static-server 0.1.8 (`sha256:e32cf42b…4000`, read from quay.io). F9 RESOLVED (CI already ran `npm test`; `npm-publish.yml` `verify` now calls `node-ci.yml`), F10 RESOLVED (`--accent-contrast`), F11 RESOLVED (operation scope, config passed down, re-seal refusal), F12 RESOLVED (end epoch, extension path, epochs validated), F13 RESOLVED (Confirm parameters and operator, `?gate=` confirmation), F14 RESOLVED (`Object.hasOwn`, cast removed), F15 RESOLVED (`.env*` ignored, `vars.` for the two public values; `@mysten/wallet-standard` kept as the wallet-adapter peer), F17 RESOLVED (npm gate = full CI). F16, F18 stay ACCEPTED-RISK (no single fix: the hosts cannot be enumerated; the identity anchor is a workspace-script override); F19 stays with the maintainer. Counts: 72/72 in 12 files (was 37/37 in 7), audit gate 1 allowlisted / 0 open. Section D: the five code gates ticked (F9, F10, F11, F12, F13); unticked: the mainnet and maintainer items only. Maintainer action: create the repository variables `VITE_SEAL_SERVER_OBJECT_IDS_TESTNET` and `VITE_SEAL_AGGREGATOR_URLS_TESTNET` (formerly secrets) if they carry non-default values.
+- 2026-10-18 — released and deployed (`v0.0.38` = `907df8d`, `0.0.38@sha256:a000ba2e460ab839d1dbefecec43057518a1a1d0670fdc04a49d9c431419d174`), verified live. Cosign keyless signature verified against the workflow-anchored identity (`verify-digests.sh` 16/16); published to npm and as an image; rollout (`apply.sh seal-ui`) succeeded; the page loads in headless Chromium with no console errors or CSP violations, headers present (re-read with `curl -I`), and the live bundle carries only the current ids. Mainnet-blocked, maintainer and external-review gates unchanged.
