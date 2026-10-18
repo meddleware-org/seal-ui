@@ -30,7 +30,7 @@ Not triggered: AUTH (no credential is held or issued; the SessionKey is seal-cli
 **Base images:** build `node:24-slim@sha256:0e0ff40c…f9b6`; runtime `quay.io/meddleware-org/static-server:0.1.8@sha256:e32cf42b…4000`
 **Runtime user:** `USER 65534:65534`   **Runtime FS:** read-only root, no writable mounts
 **Deployed by:** `post-bootstrap/seal-ui/overlays/default`; digest from `config/images.yaml`
-**Build args:** `CSP`, `VITE_NETWORK` and the `VITE_SEAL_*`, `VITE_WALRUS_*`, `VITE_INDEXER_URL` variables above — none secret, none a test switch (F15: the two public values are passed from repository variables)
+**Build args:** `CSP`, `VITE_NETWORK` and the `VITE_SEAL_*`, `VITE_WALRUS_*`, `VITE_INDEXER_URL` variables above — none secret, none a test switch (F15: the two public values are passed from a repository variable, falling back to the existing secret)
 **Deployment status:** npm v0.0.37 (2026-10-09); image `quay.io/meddleware-org/seal-ui` serving `sui-seal.meddleware.co.uk` at 0.0.37 (`sha256:7e919894…`, deployed 2026-10-09; the live bundle carries `seal_policies` `0x0c8f7349…`, `PolicyConfig` `0xee0403ba…`, `access_gate` `0xd7ddaa94…` and no superseded id); embedded in dashboard 0.1.84
 **Review date:** 2026-09-18 (first pass) · re-verified 2026-10-02 · re-verified 2026-10-09 · fix wave 2026-10-18
 **Reviewer:** Internal review
@@ -382,9 +382,11 @@ bundle (ADR-0002 forbids it; `config.ts` never adds a key, but the URL itself is
 **Impact:** none on behaviour; (b) hides public values from build logs and invites a mistake.
 **Remediation / evidence:** (a) `.gitignore` now ignores `.env` and `.env.*` except `.env.example`
 (`git check-ignore` confirms `.env.local` is ignored and `.env.example` is not). (b) `docker-publish.yml`
-passes `VITE_SEAL_SERVER_OBJECT_IDS_TESTNET` and `VITE_SEAL_AGGREGATOR_URLS_TESTNET` from `vars.` in all
-four build jobs; **the maintainer must create these two repository variables (same names, same values as
-the former secrets) before the next release, otherwise the testnet defaults apply**. (c) ADJUDICATED, kept:
+passes `VITE_SEAL_SERVER_OBJECT_IDS_TESTNET` and `VITE_SEAL_AGGREGATOR_URLS_TESTNET` as
+`vars.X || secrets.X` in all four build jobs: a repository variable wins, and the existing secret is the
+fallback, so the build never silently drops to the testnet defaults. The two values are public (key-server
+object ids and aggregator URLs), so variables are the right home; moving them is an optional maintainer
+step (`OPERATOR_TASKS.md` "Move two seal-ui build values from secrets to variables"). (c) ADJUDICATED, kept:
 `@meddleware/wallet-adapter` lists `@mysten/wallet-standard >=0.21.0 <0.22` as a peer dependency, and this
 app is the host that must provide the single copy (access-gate-ui keeps it for the same reason); nothing in
 `src/` imports it directly.
@@ -470,7 +472,7 @@ The credential inventory (scope, holder, expiry, rotation) is the maintainer ite
 | WALRUS | Size limits | client cap 10 MiB (`VITE_WALRUS_MAX_UPLOAD_BYTES`; public publishers cap at 10 MiB), UX only |
 | VUE | Untrusted rendering | HOLDS — labels, publishers, blob ids and manifest fields as text; sanitised download names; the plaintext is downloaded, never rendered |
 | VUE | Colour & links | HOLDS — primary buttons use `--accent-contrast` (F10); no `--warning` text; one running-text link (the Walrus asset manager, accent colour) |
-| VUE | Build-time configuration | HOLDS — no secrets in `VITE_*`; custody and server sets public; every variable in `.env.example`; ids from `deployments` (VUE-M2); the two public values are passed from repository variables (F15) |
+| VUE | Build-time configuration | HOLDS — no secrets in `VITE_*`; custody and server sets public; every variable in `.env.example`; ids from `deployments` (VUE-M2); the two public values come from a repository variable, falling back to the existing secret (F15) |
 | VUE | Test hooks | N/A — none; no test mode exists |
 | VUE | Signing UX | HOLDS for the wallet prompts (the SessionKey message and the pointer transaction are shown by the wallet; buttons are disabled while busy); the Confirm step lists what is sealed to and the gate operator, and a link-preselected gate needs a confirmation (F13) |
 | VUE | Shared-wallet state | HOLDS (I6) for sessions and (F11) for in-flight operations; the chain-id check and account-change events are wallet-adapter 0.0.17's (own audit) |
