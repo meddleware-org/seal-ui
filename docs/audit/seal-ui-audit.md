@@ -246,7 +246,7 @@ Not run: a Trivy *config* scan of the Dockerfile and manifests (the image scan r
 
 ### F9 — Unit tests are not run by CI or by the release gate
 
-**Severity:** Low   **Disposition:** RESOLVED (`node-ci.yml` runs `npm test` since `6d0aa5d`; `npm-publish.yml` `verify` calls `node-ci.yml` in 0.0.38, commit pending)
+**Severity:** Low   **Disposition:** RESOLVED (`node-ci.yml` runs `npm test` since `6d0aa5d`; `npm-publish.yml` `verify` calls `node-ci.yml` in 0.0.38, commit `4531836`)
 **Where:** `.github/workflows/node-ci.yml` (no `npm test` step); `docker-publish.yml` `verify` calls it
 **Issue:** CI runs the audit gate, type-check, the three linters, the build and the licence check, but not
 the 37 unit tests. Until 0.0.36 the image release's own `verify` job ran `npm test`; 0.0.37 (`1c9a03e`)
@@ -262,7 +262,7 @@ the package. The `docker-publish.yml` comment ("type-check, lint, tests, build, 
 
 ### F10 — Primary buttons draw white text on the accent colour
 
-**Severity:** Low   **Disposition:** RESOLVED (0.0.38, commit pending; `tests/primary-button-contrast.test.ts`)
+**Severity:** Low   **Disposition:** RESOLVED (0.0.38, commit `4531836`; `tests/primary-button-contrast.test.ts`)
 **Where:** `src/components/SealView.vue:788` (`button.primary { background: var(--accent, #c0503f); color: #fff }`)
 **Issue:** in the dark theme `--accent` is a light stop (`#e07850`, or the season's 300/400 stop) and the
 design-tokens role for text on it is `--accent-contrast` (`#201b19`). Hard-coded `#fff` gives 3.01:1 with
@@ -282,7 +282,7 @@ and pass in both themes (4.7–8.4:1).
 
 ### F11 — In-flight operations finish against the new network or account
 
-**Severity:** Low   **Disposition:** RESOLVED (0.0.38, commit pending; `tests/seal-view.operations.test.ts`, `tests/reseal-network.test.ts`, `tests/operation-scope.test.ts`)
+**Severity:** Low   **Disposition:** RESOLVED (0.0.38, commit `4531836`; `tests/seal-view.operations.test.ts`, `tests/reseal-network.test.ts`, `tests/operation-scope.test.ts`)
 **Where:** `src/components/SealView.vue` (`performEncrypt`, `performReseal`, `performDiscover`; the
 `watch(network)` and account watchers)
 **Issue:** a network switch clears `manifest`, `discovered` and the status, but an operation that is
@@ -312,7 +312,7 @@ dropped on completion rather than cancelled.
 
 ### F12 — The ciphertext's storage lifetime is never shown
 
-**Severity:** Low   **Disposition:** RESOLVED (0.0.38, commit pending; `tests/seal-view.operations.test.ts`, `tests/walrus.test.ts`, `tests/config.test.ts`)
+**Severity:** Low   **Disposition:** RESOLVED (0.0.38, commit `4531836`; `tests/seal-view.operations.test.ts`, `tests/walrus.test.ts`, `tests/config.test.ts`)
 **Where:** `src/walrus.ts` (`WALRUS_EPOCHS`, default 5), `SealView.vue` (Confirm step, manifest)
 **Issue:** `storeBlob` stores the ciphertext for `VITE_WALRUS_EPOCHS` epochs (5 by default) and returns
 only the blob id; the publisher's `endEpoch` is discarded. Neither the Confirm step, the manifest nor the
@@ -334,7 +334,7 @@ parser's accepted and rejected values.
 
 ### F13 — The Confirm step omits what decides who can decrypt
 
-**Severity:** Low   **Disposition:** RESOLVED (0.0.38, commit pending; `tests/seal-view.operations.test.ts`, `tests/confirm.test.ts`)
+**Severity:** Low   **Disposition:** RESOLVED (0.0.38, commit `4531836`; `tests/seal-view.operations.test.ts`, `tests/confirm.test.ts`)
 **Where:** `src/components/SealView.vue` (Encrypt step 2, `onMounted` deep link)
 **Issue:** the Confirm step lists the policy label, the file and the label, not the policy parameters
 (the gate id, or the unlock time). A link `?gate=<id>` preselects the nft-gate policy and the gate in step
@@ -354,7 +354,7 @@ operation refused, enabled after ticking), no prompt for a chosen gate or withou
 
 ### F14 — TypeScript hygiene: unguarded caller-keyed lookups and an unjustified cast
 
-**Severity:** Info   **Disposition:** RESOLVED (0.0.38, commit pending; `tests/config.test.ts`)
+**Severity:** Info   **Disposition:** RESOLVED (0.0.38, commit `4531836`; `tests/config.test.ts`)
 **Where:** `src/config.ts` (`SEAL_POLICIES_DEPLOYMENTS[net]`, `ACCESS_GATE_DEPLOYMENTS[net]`,
 `SERVER_DEFAULTS[net]`, `WALRUS_DEFAULTS[net]`), `src/sealed-content.ts` (`client as never`)
 **Issue:** TS lens *Caller-keyed lookups*: these index records with a string through a cast, so a key such
@@ -371,7 +371,7 @@ is removed (the wallet-adapter client satisfies seal-client 0.0.20's `SuiObjectC
 
 ### F15 — Repository and workflow hygiene
 
-**Severity:** Info   **Disposition:** RESOLVED (0.0.38, commit pending; (c) ADJUDICATED: the dependency is kept)
+**Severity:** Info   **Disposition:** RESOLVED (0.0.38, commit `4531836`; (c) ADJUDICATED: the dependency is kept)
 **Where:** `.gitignore`, `package.json`, `.github/workflows/docker-publish.yml`
 **Issue:** (a) `.gitignore` has no `.env` pattern, although `.env.example` says to copy it to `.env.local`
 and never commit it (`.dockerignore` excludes `.env*.local`, so the image is safe); (b) the build passes
@@ -404,7 +404,7 @@ No `'wasm-unsafe-eval'` is needed (no wasm). Revisit when the hosts are fixed fo
 
 ### F17 — The npm publish gate is a subset of CI
 
-**Severity:** Low   **Disposition:** RESOLVED (0.0.38, commit pending)
+**Severity:** Low   **Disposition:** RESOLVED (0.0.38, commit `4531836`)
 **Where:** `.github/workflows/npm-publish.yml`
 **Issue:** the npm job's `verify` runs `npm ci`, the audit gate, type-check and the unit tests, not the
 full CI workflow (linters, licence check). The image release (F8) does run the full workflow on the same
@@ -709,4 +709,4 @@ None (ADR-0002 OQs decided: D24).
 - 2026-10-03 — consumer wave: 0.0.31 (seal-client 0.0.15, walrus-client 0.0.25, access-gate-client 0.0.4, ui 0.1.30); deployed; live sweep clean.
 - 2026-10-08 — Lens dates reconciled with the registry (`check-template-dates.mjs`): base 2026-10-08, and SUI_CLIENT/GO 2026-10-08 and TS 2026-10-03 where cited. The changes (AUTH/PLATFORM/MCP/DB registered, the GO token row moved to AUTH, JSR in trusted publishing, layered injection guards) alter no disposition here.
 - 2026-10-09 — re-verified at 0.0.37 (`1c9a03e`) against the code, the workflows, the manifests and the live site/bundle. Template dates now VUE/TS/IMG 2026-10-08; front matter gains the Seal, Walrus, VUE, TS and IMG fields. F1–F6 re-checked (F1 evidence extended to the registry check and the right test file; F2 residual write-side note; F6 still true under the republished package). New: F7 RESOLVED (operator-only discovery, linked and soulbound gates, registry-checked manifests; seal-client 0.0.16–0.0.19), F8 RESOLVED (image release gate, Trivy, notices, lockfile, `USER 65534`, static-server 0.1.7), F9 DEFERRED (the known `node-ci.yml` gap: no `npm test`, present here), F10–F15 DEFERRED (primary button contrast, in-flight operations, hidden storage lifetime, Confirm step omits the sealed-to parameters, TypeScript hygiene, repository hygiene), F16–F18 ACCEPTED-RISK, F19 DEFERRED (maintainer). The design-tokens F10 check (`--warning` as text) is clean here. The republished `seal_policies` `0x0c8f7349…` and `access_gate` `0xd7ddaa94…` are the only ids in the live bundle. Counts: 37/37 (was 31/31), audit gate 1 allowlisted / 0 open. Section D gates ticked with evidence; unticked: four next-patch items (F9–F13), F12 as a pre-mainnet gate, and the mainnet/maintainer items.
-- 2026-10-18 — fix wave at 0.0.38 (commit pending). Dependencies: seal-client ^0.0.20, walrus-client ^0.0.28, access-gate-client ^0.0.9, design-tokens ^0.1.10 (ui, wallet-adapter and eslint-config already at their latest); runtime base static-server 0.1.8 (`sha256:e32cf42b…4000`, read from quay.io). F9 RESOLVED (CI already ran `npm test`; `npm-publish.yml` `verify` now calls `node-ci.yml`), F10 RESOLVED (`--accent-contrast`), F11 RESOLVED (operation scope, config passed down, re-seal refusal), F12 RESOLVED (end epoch, extension path, epochs validated), F13 RESOLVED (Confirm parameters and operator, `?gate=` confirmation), F14 RESOLVED (`Object.hasOwn`, cast removed), F15 RESOLVED (`.env*` ignored, `vars.` for the two public values; `@mysten/wallet-standard` kept as the wallet-adapter peer), F17 RESOLVED (npm gate = full CI). F16, F18 stay ACCEPTED-RISK (no single fix: the hosts cannot be enumerated; the identity anchor is a workspace-script override); F19 stays with the maintainer. Counts: 72/72 in 12 files (was 37/37 in 7), audit gate 1 allowlisted / 0 open. Section D: the five code gates ticked (F9, F10, F11, F12, F13); unticked: the mainnet and maintainer items only. Maintainer action: create the repository variables `VITE_SEAL_SERVER_OBJECT_IDS_TESTNET` and `VITE_SEAL_AGGREGATOR_URLS_TESTNET` (formerly secrets) if they carry non-default values.
+- 2026-10-18 — fix wave at 0.0.38 (commit `4531836`). Dependencies: seal-client ^0.0.20, walrus-client ^0.0.28, access-gate-client ^0.0.9, design-tokens ^0.1.10 (ui, wallet-adapter and eslint-config already at their latest); runtime base static-server 0.1.8 (`sha256:e32cf42b…4000`, read from quay.io). F9 RESOLVED (CI already ran `npm test`; `npm-publish.yml` `verify` now calls `node-ci.yml`), F10 RESOLVED (`--accent-contrast`), F11 RESOLVED (operation scope, config passed down, re-seal refusal), F12 RESOLVED (end epoch, extension path, epochs validated), F13 RESOLVED (Confirm parameters and operator, `?gate=` confirmation), F14 RESOLVED (`Object.hasOwn`, cast removed), F15 RESOLVED (`.env*` ignored, `vars.` for the two public values; `@mysten/wallet-standard` kept as the wallet-adapter peer), F17 RESOLVED (npm gate = full CI). F16, F18 stay ACCEPTED-RISK (no single fix: the hosts cannot be enumerated; the identity anchor is a workspace-script override); F19 stays with the maintainer. Counts: 72/72 in 12 files (was 37/37 in 7), audit gate 1 allowlisted / 0 open. Section D: the five code gates ticked (F9, F10, F11, F12, F13); unticked: the mainnet and maintainer items only. Maintainer action: create the repository variables `VITE_SEAL_SERVER_OBJECT_IDS_TESTNET` and `VITE_SEAL_AGGREGATOR_URLS_TESTNET` (formerly secrets) if they carry non-default values.
