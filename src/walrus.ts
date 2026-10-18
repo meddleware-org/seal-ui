@@ -1,15 +1,29 @@
 // Ciphertext storage via the Walrus HTTP publisher/aggregator (@meddleware/walrus-client/http). The
 // blob is opaque (already Seal-encrypted), so no wallet, wasm or @mysten/walrus is involved. This
-// module only applies the active network's endpoints and the app's limits.
+// module only applies a network's endpoints and the app's limits. Callers that await across a
+// network switch pass the configuration they started with, so a late call never reaches the new
+// network's publisher.
 import { readBlob as readViaAggregator, storeBlobViaPublisher } from '@meddleware/walrus-client/http'
-import { activeConfig, WALRUS_EPOCHS, WALRUS_MAX_UPLOAD_BYTES } from './config.js'
+import { activeConfig, WALRUS_MAX_UPLOAD_BYTES, type SealConfig } from './config.js'
+
+/** A stored ciphertext: its blob id and, when the publisher reports it, the last epoch it is stored for. */
+export interface StoredBlob {
+  blobId: string
+  /** Last storage epoch (inclusive): the content is unrecoverable after it unless the Blob object is extended. */
+  endEpoch?: number
+  /** The `Blob` object sent to the owner; its holder can extend the lifetime. */
+  blobObjectId?: string
+}
 
 /**
  * Store the ciphertext as a permanent blob whose `Blob` object goes to `sendObjectTo` (the user, not
- * the publisher). Returns the blob id.
+ * the publisher), for `cfg.walrusEpochs` epochs. Returns the blob id and end epoch.
  */
-export async function storeBlob(bytes: Uint8Array, opts: { sendObjectTo: string }): Promise<string> {
-  const cfg = activeConfig.value
+export async function storeBlob(
+  bytes: Uint8Array,
+  opts: { sendObjectTo: string; config?: Pick<SealConfig, 'network' | 'walrusPublisher' | 'walrusEpochs'> },
+): Promise<StoredBlob> {
+  const cfg = opts.config ?? activeConfig.value
   if (!cfg.walrusPublisher) {
     throw new Error(
       `No Walrus publisher is configured for ${cfg.network}. Walrus runs no public mainnet publisher; ` +
@@ -18,7 +32,7 @@ export async function storeBlob(bytes: Uint8Array, opts: { sendObjectTo: string 
   }
   const stored = await storeBlobViaPublisher(bytes, {
     publisher: cfg.walrusPublisher,
-    epochs: WALRUS_EPOCHS,
+    epochs: cfg.walrusEpochs,
     sendObjectTo: opts.sendObjectTo,
     maxBytes: WALRUS_MAX_UPLOAD_BYTES,
   })
@@ -27,12 +41,14 @@ export async function storeBlob(bytes: Uint8Array, opts: { sendObjectTo: string 
   if (stored.kind !== 'newlyCreated') {
     throw new Error('The publisher reported this blob as already stored, so no Blob object was created for you. Try again.')
   }
-  return stored.blobId
+  return { blobId: stored.blobId, endEpoch: stored.endEpoch, blobObjectId: stored.blobObjectId }
 }
 
 /** Read the ciphertext back, with the aggregator's strict consistency check. */
-export function readBlob(blobId: string): Promise<Uint8Array> {
-  const cfg = activeConfig.value
-  if (!cfg.walrusAggregator) throw new Error(`No Walrus aggregator is configured for ${cfg.network}.`)
-  return readViaAggregator(blobId, { aggregator: cfg.walrusAggregator })
+export function readBlob(
+  blobId: string,
+  config: Pick<SealConfig, 'network' | 'walrusAggregator'> = activeConfig.value,
+): Promise<Uint8Array> {
+  if (!config.walrusAggregator) throw new Error(`No Walrus aggregator is configured for ${config.network}.`)
+  return readViaAggregator(blobId, { aggregator: config.walrusAggregator })
 }

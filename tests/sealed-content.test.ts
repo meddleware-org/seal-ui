@@ -57,4 +57,22 @@ describe('discoverSealedContent', () => {
     const { discoverSealedContent } = await load({ network: 'mainnet', seal: null, problem: 'not available on mainnet' })
     await expect(discoverSealedContent('0xgate')).rejects.toThrow('not available on mainnet')
   })
+
+  it('uses the configuration it is given, not the active one (a switch mid-flight)', async () => {
+    listSealedContent.mockResolvedValue({ pointers: [], cursor: null, source: 'rpc' })
+    const { discoverSealedContent } = await load({ network: 'mainnet', accessGateOriginalId: '0xmain', seal: { originalId: '0xmainpkg', publishedAt: '0x1' } })
+    await discoverSealedContent('0xgate', {
+      config: { network: 'testnet', accessGateOriginalId: '0xa5', seal: { originalId: '0x42', publishedAt: '0x43' } } as never,
+    })
+    expect(gateOperators).toHaveBeenCalledWith({ client: true }, '0xgate', '0xa5')
+    expect(listSealedContent.mock.calls[0][1].originalId).toBe('0x42')
+  })
+})
+
+describe('gateOperatorsFor', () => {
+  it('reads the gate operator for the Confirm step from the deployment\'s access_gate package', async () => {
+    const { gateOperatorsFor } = await load({ network: 'testnet', accessGateOriginalId: '0xa5', seal: { originalId: '0x42', publishedAt: '0x43' } })
+    expect(await gateOperatorsFor('0xgate')).toEqual(['0xop'])
+    expect(gateOperators).toHaveBeenCalledWith({ client: true }, '0xgate', '0xa5')
+  })
 })

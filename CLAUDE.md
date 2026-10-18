@@ -44,7 +44,9 @@ and later decrypt it if the on-chain policy allows.
 | `src/seal.ts` | Per-network `registry` + lazy `SealController` (`originalId` / `publishedAt` from `deployments`) |
 | `src/sealed-content.ts` | `discoverSealedContent` over seal-client `listSealedContent` (optional indexer) |
 | `src/wallet.ts` | Shim over `@meddleware/wallet-adapter` for the selected network; re-exports `useWallet` / `getSuiClient` / `signPersonalMessage` / `signAndExecute` |
-| `src/walrus.ts` | `storeBlob` / `readBlob` over walrus-client `/http` with the network's endpoints |
+| `src/walrus.ts` | `storeBlob` (returns blob id + `endEpoch`) / `readBlob` over walrus-client `/http`; take the config an operation started with |
+| `src/operation-scope.ts` | Tokens that bind an async operation to the network/account it started on; `SealView` invalidates them on a switch and every `await` is followed by `isCurrent()` |
+| `src/confirm.ts` | Rows for the Encrypt Confirm step (every policy parameter, unlock time in local + UTC) |
 | `src/components/SealView.vue` | Core tool UI (Encrypt/Decrypt/Unlock tabs, generic policy form, manifest, publish pointer). **Scoped** styles so it embeds without the global stylesheet. Exported from `src/index.ts`. |
 | `src/index.ts` | Library entry — exports `SealView` for the dashboard to render inline |
 | `src/App.vue` | Standalone shell only: `AppHeader` (+ network badge, `ColorModeControl`) + `<SealView>` + `AppFooter` |

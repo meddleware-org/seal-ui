@@ -105,3 +105,45 @@ describe('sealConfig', () => {
     expect(bad.problem).toMatch(/VITE_SEAL_KEY_CUSTODY_TESTNET must be "independent" or "operator"/)
   })
 })
+
+describe('parseWalrusEpochs', () => {
+  it('defaults to 5 when unset or empty (an unset Docker build arg is the empty string)', async () => {
+    const { parseWalrusEpochs } = await import('../src/config.js')
+    expect(parseWalrusEpochs(undefined)).toEqual({ epochs: 5, error: null })
+    expect(parseWalrusEpochs('')).toEqual({ epochs: 5, error: null })
+  })
+
+  it('accepts integers in 1..53', async () => {
+    const { parseWalrusEpochs } = await import('../src/config.js')
+    expect(parseWalrusEpochs('1').epochs).toBe(1)
+    expect(parseWalrusEpochs('53')).toEqual({ epochs: 53, error: null })
+  })
+
+  it('rejects zero, too many, fractions, signs and text', async () => {
+    const { parseWalrusEpochs } = await import('../src/config.js')
+    for (const bad of ['0', '54', '2.5', '-3', '1e1', 'ten', '0x5']) {
+      expect(parseWalrusEpochs(bad).error, bad).toMatch(/integer in \[1, 53\]/)
+    }
+  })
+})
+
+describe('sealConfig lifetime and lookups', () => {
+  it('carries the requested epochs, and reports an invalid value as a problem', async () => {
+    const { sealConfig } = await import('../src/config.js')
+    expect(sealConfig('testnet', {}).walrusEpochs).toBe(5)
+    expect(sealConfig('testnet', { VITE_WALRUS_EPOCHS: '12' }).walrusEpochs).toBe(12)
+    expect(sealConfig('testnet', { VITE_WALRUS_EPOCHS: '99' }).problem).toMatch(/VITE_WALRUS_EPOCHS/)
+  })
+
+  it('never resolves a prototype member for a caller-supplied network name', async () => {
+    const { sealConfig, aggregatorUrlFor } = await import('../src/config.js')
+    for (const name of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
+      const c = sealConfig(name, {})
+      expect(c.seal, name).toBeNull()
+      expect(c.servers, name).toEqual([])
+      expect(c.walrusPublisher, name).toBe('')
+      expect(c.accessGateOriginalId, name).toBe('')
+      expect(aggregatorUrlFor(name, '0x1', {}), name).toBeUndefined()
+    }
+  })
+})

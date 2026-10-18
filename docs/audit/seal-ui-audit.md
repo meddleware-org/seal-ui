@@ -5,37 +5,37 @@
 **Project type:** Vue app + UI library
 **Template:** AUDIT_TEMPLATE.md (2026-10-08) + AUDIT_TEMPLATE_VUE.md (2026-10-08) + AUDIT_TEMPLATE_TS.md (2026-10-08) + AUDIT_TEMPLATE_SUI_CLIENT.md (2026-10-08) + AUDIT_TEMPLATE_SEAL.md (2026-09-30) + AUDIT_TEMPLATE_WALRUS.md (2026-09-30) + AUDIT_TEMPLATE_IMG.md (2026-10-08)
 Not triggered: AUTH (no credential is held or issued; the SessionKey is seal-client's, in memory, and no API key exists), OPS (no script signs on a real chain), PROXY, WORKERS, GO, RUST, SITE, PLATFORM (the cluster is audited with the workspace).
-**Seal SDK:** `@mysten/seal` 1.4.19 (peer of `@meddleware/seal-client` 0.0.19, `^1.4.18`; one copy)
+**Seal SDK:** `@mysten/seal` 1.4.19 (peer of `@meddleware/seal-client` 0.0.20, `^1.4.18`; one copy)
 **Key-server mode:** testnet: Mysten committee via its aggregator + two Mysten Open-mode servers (the aggregator counts as one server); mainnet: three keyless Open-mode independent servers (ADR-0002, D24)
 **Key servers per network:** testnet `0xb012378c…1e98` (committee, aggregator `seal-aggregator-testnet.mystenlabs.com`), `0x73d05d62…db75`, `0xf5d14a81…23c8` (Mysten Open); mainnet `0x145540d9…08b6` (Overclock), `0x1afb3a57…5475` (NodeInfra), `0x4a65b4ff…286a` (H2O Nodes); overridable per network by build variables, never with an API key
 **Threshold:** 2 on both networks (weights counted; validated by `thresholdError`)   **verifyKeyServers:** seal-client switches it off as soon as any server uses an aggregator, so off on testnet and on for the mainnet set   **checkShareConsistency:** on (seal-client default)
 **Key custody notice:** `VITE_SEAL_KEY_CUSTODY_{NET}` (`independent` | `operator`); operator mode shows a warning; any other value disables sealing
-**Policy package:** testnet `seal_policies` `0x0c8f7349…773d` (original = published-at; republished 2026-10-09, links `access_gate` `0xd7ddaa94…`), `PolicyConfig` `0xee0403ba…7d1a`, from seal-client 0.0.19 `deployments`; UpgradeCap with the deploy key until the multisig transfer and burn in CUSTODY.md (`OPERATOR_TASKS.md` "Mainnet release custody"); the superseded `0x61c4aa…` (and older) are immutable, and content sealed under them no longer decrypts (decision: legacy namespaces unsupported); mainnet: not published, sealing shows "unavailable"
-**Walrus SDK:** none; ciphertext goes through the HTTP publisher and aggregator (`@meddleware/walrus-client/http` 0.0.27); no wasm
+**Policy package:** testnet `seal_policies` `0x0c8f7349…773d` (original = published-at; republished 2026-10-09, links `access_gate` `0xd7ddaa94…`), `PolicyConfig` `0xee0403ba…7d1a`, from seal-client 0.0.20 `deployments`; UpgradeCap with the deploy key until the multisig transfer and burn in CUSTODY.md (`OPERATOR_TASKS.md` "Mainnet release custody"); the superseded `0x61c4aa…` (and older) are immutable, and content sealed under them no longer decrypts (decision: legacy namespaces unsupported); mainnet: not published, sealing shows "unavailable"
+**Walrus SDK:** none; ciphertext goes through the HTTP publisher and aggregator (`@meddleware/walrus-client/http` 0.0.28); no wasm
 **Package config source:** `deployments` of seal-client and access-gate-client (never env)
 **Upload relays:** none (the Meddleware relay is a documented future option)
 **Aggregator / publisher hosts:** testnet publisher `publisher.walrus-testnet.walrus.space`, aggregator `aggregator.walrus-testnet.walrus.space`; mainnet aggregator `aggregator.walrus-mainnet.walrus.space`, publisher none (Walrus runs no public mainnet publisher; storing fails with a clear message)
-**Tip ceiling:** n/a (publisher pays)   **Epoch default / maximum:** 5 (`VITE_WALRUS_EPOCHS`) / 53, not shown to the user (F12)
+**Tip ceiling:** n/a (publisher pays)   **Epoch default / maximum:** 5 (`VITE_WALRUS_EPOCHS`, validated as an integer in 1..53) / 53, shown on the Confirm step and the result with the publisher's end epoch (F12)
 **Deletable default:** permanent (`permanent=true` in the walrus-client call); the `Blob` object is sent to the user's address (`send_object_to`), who controls its lifetime
 **Sui SDK:** `@mysten/sui ^2.33.2` (installed 2.35.0, one copy; `npm ls` single version)   **Transport:** gRPC through wallet-adapter
 **Networks:** testnet (live); mainnet shows "unavailable" until `seal_policies` is published there; localnet likewise
-**On-chain packages consumed:** `seal_policies` (above) and the `access_gate` original id `0xd7ddaa94…88c9` through access-gate-client 0.0.8 `deployments` (gate suggestions, linked-gate check); call targets `publishedAt`, identities and events `originalId`; never configuration
+**On-chain packages consumed:** `seal_policies` (above) and the `access_gate` original id `0xd7ddaa94…88c9` through access-gate-client 0.0.9 `deployments` (gate suggestions, linked-gate check); call targets `publishedAt`, identities and events `originalId`; never configuration
 **Package manager / lockfile:** npm 11, committed (also copied into the image for SBOM tools)   **Module format / publish model:** ESM; ships source (library) + SPA image
 **Runtime targets:** browser   **Peer dependencies:** `@meddleware/wallet-adapter >=0.0.12 <0.2.0`
 **Build tool:** vite 8.3, `@vitejs/plugin-vue` 6.0.9, vue 3.5.43, vue-tsc 3.3.12, TypeScript 6.0.3, vitest 5.0.3
 **Hosting:** container image on static-server (CSP and HSTS from the server); no static-host `_headers` file
 **Embedding hosts:** the dashboard (`SealView`, scoped styles, no shell chrome)
 **VITE_\* inventory:** `VITE_NETWORK` (testnet|mainnet, baked, selects the network only), `VITE_SEAL_SERVER_OBJECT_IDS_{NET}` / `VITE_SEAL_AGGREGATOR_URLS_{NET}` / `VITE_SEAL_THRESHOLD_{NET}` / `VITE_SEAL_KEY_CUSTODY_{NET}` (committee, per network), `VITE_WALRUS_PUBLISHER_{NET}` / `VITE_WALRUS_AGGREGATOR_{NET}` (storage hosts), `VITE_WALRUS_EPOCHS`, `VITE_WALRUS_MAX_UPLOAD_BYTES` (limits), `VITE_INDEXER_URL` (discovery read), `VITE_DOCS_URL` / `VITE_DEV_URL` (footer links); all public, none secret, none selects an on-chain package id; `.env.example` lists them all
-**Images:** `quay.io/meddleware-org/seal-ui:0.0.37@sha256:7e919894…1b86` (Docker Hub mirror; cosign keyless, SPDX SBOM attestation, build provenance; verified 2026-10-09, `verify-digests.sh` 16/16)
-**Base images:** build `node:24-slim@sha256:0e0ff40c…f9b6`; runtime `quay.io/meddleware-org/static-server:0.1.7@sha256:2e227311…2379` (Go 1.26.9)
+**Images:** deployed `quay.io/meddleware-org/seal-ui:0.0.37@sha256:7e919894…1b86`; 0.0.38 builds on release (Docker Hub mirror; cosign keyless, SPDX SBOM attestation, build provenance; verified 2026-10-09, `verify-digests.sh` 16/16)
+**Base images:** build `node:24-slim@sha256:0e0ff40c…f9b6`; runtime `quay.io/meddleware-org/static-server:0.1.8@sha256:e32cf42b…4000`
 **Runtime user:** `USER 65534:65534`   **Runtime FS:** read-only root, no writable mounts
 **Deployed by:** `post-bootstrap/seal-ui/overlays/default`; digest from `config/images.yaml`
-**Build args:** `CSP`, `VITE_NETWORK` and the `VITE_SEAL_*`, `VITE_WALRUS_*`, `VITE_INDEXER_URL` variables above — none secret, none a test switch (F15: two are passed from repository secrets)
+**Build args:** `CSP`, `VITE_NETWORK` and the `VITE_SEAL_*`, `VITE_WALRUS_*`, `VITE_INDEXER_URL` variables above — none secret, none a test switch (F15: the two public values are passed from repository variables)
 **Deployment status:** npm v0.0.37 (2026-10-09); image `quay.io/meddleware-org/seal-ui` serving `sui-seal.meddleware.co.uk` at 0.0.37 (`sha256:7e919894…`, deployed 2026-10-09; the live bundle carries `seal_policies` `0x0c8f7349…`, `PolicyConfig` `0xee0403ba…`, `access_gate` `0xd7ddaa94…` and no superseded id); embedded in dashboard 0.1.84
-**Review date:** 2026-09-18 (first pass) · re-verified 2026-10-02 · re-verified 2026-10-09
+**Review date:** 2026-09-18 (first pass) · re-verified 2026-10-02 · re-verified 2026-10-09 · fix wave 2026-10-18
 **Reviewer:** Internal review
 **Severity ceiling:** Medium — confidentiality comes from Seal and the on-chain policy; the app chooses the policy, identity and storage and presents what users are sealing to, so a defect can mislead or deny, not disclose on its own.
-**Status:** re-verified 2026-10-09
+**Status:** fix wave 2026-10-18 (0.0.38); re-verified 2026-10-09
 
 ---
 
@@ -55,6 +55,10 @@ First-pass findings are resolved or adjudicated. Earlier passes found:
   know before sealing** panel now states it, with the threshold, permanent key release and public
   labels.
 
+Fix wave 2026-10-18 (0.0.38; 72 unit tests, type-check and all three linters green, audit gate 1 allowlisted
+/ 0 open; dependencies: seal-client 0.0.20, walrus-client 0.0.28, access-gate-client 0.0.9, design-tokens 0.1.10;
+runtime base static-server 0.1.8).
+
 Re-verified 2026-10-09 (0.0.37; 37 unit tests, type-check and all three linters green, audit gate
 1 allowlisted / 0 open; live site `sui-seal.meddleware.co.uk` and its bundle read the same day):
 
@@ -66,21 +70,21 @@ Re-verified 2026-10-09 (0.0.37; 37 unit tests, type-check and all three linters 
   published image before cosign signs it, ships the lockfile for SBOM tools, serves
   `/THIRD_PARTY_LICENSES` (HTTP 200 live), runs as an explicit `USER 65534:65534` on static-server 0.1.7,
   and the pod sets `automountServiceAccountToken: false`.
-- The known CI gap found in the sibling web apps **is present here**: **F9 (Low, DEFERRED)**
-  `node-ci.yml` never runs the unit tests, and since 0.0.37 (`1c9a03e`) the image release `verify` job
-  calls it instead of its own `npm test` step, so only the npm job still runs them.
-- The newly applicable lens checks found further defects that are **not yet fixed** (code changes are
-  outside this alignment; each is a small change for the next patch release): **F10 (Low, DEFERRED)** the
-  primary buttons draw white text on `--accent`, 2.4–3.0:1 in the dark theme (the standalone default);
-  **F11 (Low, DEFERRED)** an encrypt, re-seal or discovery that is still running when the network or
-  account changes finishes against the new state; **F12 (Low, DEFERRED)** the ciphertext is stored for 5
-  epochs and the user is never told when it expires; **F13 (Low, DEFERRED)** the Confirm step omits the
-  policy parameters (the gate or unlock time) that decide who can decrypt; **F14 (Info, DEFERRED)** two
-  TypeScript hygiene points; **F15 (Info, DEFERRED)** repository hygiene.
+- The known CI gap found in the sibling web apps **was present here**: **F9 (Low, RESOLVED)**
+  `node-ci.yml` did not run the unit tests (it does since `6d0aa5d`), and since 0.0.37 the image release
+  `verify` job called it instead of its own `npm test` step; the npm job's `verify` now calls it too (0.0.38).
+- The newly applicable lens checks found further defects, **all fixed in 0.0.38 (fix wave 2026-10-18)**:
+  **F10 (Low, RESOLVED)** the primary buttons drew white text on `--accent`, 2.4–3.0:1 in the dark theme
+  (now `var(--accent-contrast)`); **F11 (Low, RESOLVED)** an encrypt, re-seal or discovery still running when
+  the network or account changed finished against the new state (now bound to the state it started in and
+  dropped on a switch); **F12 (Low, RESOLVED)** the ciphertext's storage lifetime is shown with the
+  publisher's end epoch and the extension path; **F13 (Low, RESOLVED)** the Confirm step lists the sealed-to
+  parameters and the gate operator, and a gate preselected by a link needs an explicit confirmation;
+  **F14 (Info, RESOLVED)** two TypeScript hygiene points; **F15 (Info, RESOLVED)** repository hygiene.
 - design-tokens F10 (`color: var(--warning)` as text): not present here; the warning notice is a fixed
   `#d29922` tint behind `currentColor` text (not a text colour).
-- Accepted or maintainer items: **F16** blanket `connect-src https:`, **F17** the npm job's gate is a
-  subset of CI, **F18** the cosign identity pins the repository not the workflow (ACCEPTED-RISK), **F19**
+- Accepted or maintainer items: **F16** blanket `connect-src https:` (ACCEPTED-RISK), **F17** the npm
+  job's gate was a subset of CI (RESOLVED 0.0.38: it calls `node-ci.yml`), **F18** the cosign identity pins the repository not the workflow (ACCEPTED-RISK), **F19**
   registry mirror and credential inventory (DEFERRED, maintainer).
 
 Library fixes reach the app: every policy verifies its identity layout and approve PTBs hold only
@@ -101,12 +105,12 @@ The severity ceiling stays Medium.
 | User | wallet, passes, content | seal, store, decrypt | wallet confirmation; policies on-chain |
 | Key servers | master shares | release or withhold; t together can decrypt | threshold; independent operators (mainnet); notice for operator custody |
 | Policy UpgradeCap holder | package upgrades | change access to existing content | disclosed (F6); CUSTODY.md transfer and burn plan |
-| Walrus publisher / aggregator | bytes | store or serve wrong bytes; stop storing at expiry | AES-GCM (tampering fails); strict consistency read; read cap; bounded response; expiry not shown (F12) |
+| Walrus publisher / aggregator | bytes | store or serve wrong bytes; stop storing at expiry | AES-GCM (tampering fails); strict consistency read; read cap; bounded response; the lifetime and end epoch are shown, with the extension path (F12) |
 | Pointer / manifest supplier | labels, ids | mislabel; point at another identity; publish to any gate | operator-only listing by default (F7); manifest validation (F1); identity checks in seal-client |
 | Indexer | pointer rows | list pointers | display only; https |
 | Whoever controls the build environment | the key-server set, threshold, publisher and indexer URLs (public `VITE_*`) | seal to servers they choose | public values, no package id or API key can be configured (I1); custody notice (I2) |
-| Link author (`?gate=`) | a preselected gate in the Encrypt form | steer a user to seal to a gate they control | the gate id is visible in the form; not repeated on the Confirm step (F13) |
-| Embedding host (dashboard) | the page around `SealView`, the shared wallet | switch account or network under the view | session clearing (I6), network watcher; in-flight operations are not cancelled (F11) |
+| Link author (`?gate=`) | a preselected gate in the Encrypt form | steer a user to seal to a gate they control | the gate id is visible in the form and repeated on the Confirm step with the gate operator read from the chain; a link-preselected gate needs an explicit confirmation (F13) |
+| Embedding host (dashboard) | the page around `SealView`, the shared wallet | switch account or network under the view | session clearing (I6), synchronous network/account watcher; in-flight operations are bound to the state they started in and drop their result on a switch (F11) |
 | Base-image publisher, registry, CI publish job | image layers, what is signed | ship altered bytes | digest pinning, Trivy before cosign, keyless signature, SBOM and provenance (F8) |
 
 ### On-chain dependency matrix
@@ -126,13 +130,13 @@ Critical / High / Medium / Low / Info / Positive.
 
 ## Scope
 
-- **In scope (0.0.37):** `src/**` (`SealView.vue`, `seal.ts`, `walrus.ts`, `config.ts`, `manifest-guard.ts`,
+- **In scope (0.0.38):** `src/**` (`SealView.vue`, `seal.ts`, `walrus.ts`, `config.ts`, `manifest-guard.ts`, `confirm.ts`, `operation-scope.ts`,
   `sealed-content.ts`, `wallet.ts`, `App.vue`, `main.ts`, `styles.css`), `index.html`, `public/`,
   `Dockerfile`, `.dockerignore`, workflows, `.github/audit-gate.mjs`, `.github/dependabot.yml`,
   `scripts/third-party-licenses.mjs`, `SECURITY.md`; the manifests in `post-bootstrap/seal-ui/`
   (read-only).
 - **Out of scope:** seal-client, walrus-client, access-gate-client (own audits); key servers.
-- **Environment (2026-10-09):** `npm test` 37/37 (7 files, vitest 5.0.3); `vue-tsc`; stylelint, eslint
+- **Environment (2026-10-18):** `npm test` 72/72 (12 files, vitest 5.0.3); `vue-tsc`; stylelint, eslint
   (+ vuejs-a11y), html-validate; production build; audit gate (1 allowlisted advisory, 0 open);
   `npm pack --dry-run` (19 files, source and changelog only); live headers and bundle of
   `sui-seal.meddleware.co.uk`. seal-client's live testnet suite exercises the same encrypt/decrypt path
@@ -242,7 +246,7 @@ Not run: a Trivy *config* scan of the Dockerfile and manifests (the image scan r
 
 ### F9 — Unit tests are not run by CI or by the release gate
 
-**Severity:** Low   **Disposition:** DEFERRED (next patch release; add one step to `node-ci.yml`; Section D pre-testnet "every test project runs in CI")
+**Severity:** Low   **Disposition:** RESOLVED (`node-ci.yml` runs `npm test` since `6d0aa5d`; `npm-publish.yml` `verify` calls `node-ci.yml` in 0.0.38, commit pending)
 **Where:** `.github/workflows/node-ci.yml` (no `npm test` step); `docker-publish.yml` `verify` calls it
 **Issue:** CI runs the audit gate, type-check, the three linters, the build and the licence check, but not
 the 37 unit tests. Until 0.0.36 the image release's own `verify` job ran `npm test`; 0.0.37 (`1c9a03e`)
@@ -251,13 +255,14 @@ replaced it with a call to `node-ci.yml` (F8) and so dropped the tests from the 
 still runs them. TS lens: every test project that exists runs in CI.
 **Impact:** a regression in the config, gating, manifest, storage or discovery logic could merge and be
 released as an image without any gate failing.
-**Remediation / evidence:** add `- run: npm test` to `node-ci.yml` (walrus-ui and token-deployer-ui already
-have it); verified by reading both workflows 2026-10-09 and running the suite locally (37/37 pass, so
-adding the step turns nothing red).
+**Remediation / evidence:** `node-ci.yml` has a `Unit tests` step (`npm test`) since `6d0aa5d` (verified by
+reading the workflow 2026-10-18); both release workflows now call it — `docker-publish.yml` `verify` (0.0.37)
+and `npm-publish.yml` `verify` (0.0.38, replacing its own subset job) — so the tests gate the image and
+the package. The `docker-publish.yml` comment ("type-check, lint, tests, build, licences") is now true.
 
 ### F10 — Primary buttons draw white text on the accent colour
 
-**Severity:** Low   **Disposition:** DEFERRED (next patch release; one-line change; Section D pre-testnet "colour")
+**Severity:** Low   **Disposition:** RESOLVED (0.0.38, commit pending; `tests/primary-button-contrast.test.ts`)
 **Where:** `src/components/SealView.vue:788` (`button.primary { background: var(--accent, #c0503f); color: #fff }`)
 **Issue:** in the dark theme `--accent` is a light stop (`#e07850`, or the season's 300/400 stop) and the
 design-tokens role for text on it is `--accent-contrast` (`#201b19`). Hard-coded `#fff` gives 3.01:1 with
@@ -268,12 +273,16 @@ the dark theme.
 **Impact:** the main buttons are hard to read for low-vision users in the dark theme. The label is also
 the button's accessible name, so nothing is hidden. Not browser-checked per theme and season: the
 `@meddleware/ui` gallery axe gate covers the shared components only.
-**Remediation / evidence:** use `color: var(--accent-contrast)`. `button.link` and `.muted` use `--accent`
-and `--muted` as text and pass in both themes (4.7–8.4:1).
+**Remediation / evidence:** `button.primary` now uses `color: var(--accent-contrast, #fff)` (design-tokens
+0.1.10 defines the role for both themes and every season; its `check:contrast` measures that pairing).
+`tests/primary-button-contrast.test.ts` pins the rule, forbids a hard-coded white label and checks the role
+exists in the installed tokens. No browser/axe suite exists in this repository, so a per-theme, per-season
+render check stays with the tokens package. `button.link` and `.muted` use `--accent` and `--muted` as text
+and pass in both themes (4.7–8.4:1).
 
 ### F11 — In-flight operations finish against the new network or account
 
-**Severity:** Low   **Disposition:** DEFERRED (next patch release; Section D pre-testnet "state invalidated on switch")
+**Severity:** Low   **Disposition:** RESOLVED (0.0.38, commit pending; `tests/seal-view.operations.test.ts`, `tests/reseal-network.test.ts`, `tests/operation-scope.test.ts`)
 **Where:** `src/components/SealView.vue` (`performEncrypt`, `performReseal`, `performDiscover`; the
 `watch(network)` and account watchers)
 **Issue:** a network switch clears `manifest`, `discovered` and the status, but an operation that is
@@ -286,13 +295,24 @@ discarded.
 **Impact:** a switch during a seal can produce a manifest that names the wrong network (the import check
 then rejects it on the right one, F1) and a Blob object sent to another of the user's accounts. No key or
 funds are at risk; the content is still decryptable only under its own namespace.
-**Remediation / evidence:** capture `network`, `owner` and the config at the start, compare after each await
-(or ignore the result when they differ), and disable the network control while `busy`. No test covers a
-mid-flight switch.
+**Remediation / evidence:** every operation (`performEncrypt`, `performDecrypt`, `performReseal`,
+`performPublish`, `performDiscover`, `performUnlock`) takes a token from `src/operation-scope.ts`, captures
+the `SealConfig` and owner address at the start, and checks `isCurrent()` after every await; a synchronous
+watcher on the network and the account address invalidates the scope, releases `busy`, clears the previous
+network's manifest/results and tells the user the operation was discarded. A discarded operation shows no
+result and no error. The config is passed down (`getSealController(cfg)`, `storeBlob({ config })`,
+`readBlob(id, cfg)`, `discoverSealedContent({ config })`) so a late call never reaches the new network's
+publisher or servers; `resealCiphertext` refuses to encrypt for another network after the original servers'
+prompt; the manifest carries the starting network. Gate-suggestion and gate-operator lookups ignore answers
+for a superseded request. Tests: a seal, a store, a discovery, a rejected discovery and an account switch
+each dropped mid-flight, a new operation after the switch completing, the re-seal refusal. The standalone
+app has no network control (the network is fixed by `VITE_NETWORK`); a host's own network control is the
+host's, and the scope covers it. The Walrus HTTP helper takes no abort signal, so a discarded request is
+dropped on completion rather than cancelled.
 
 ### F12 — The ciphertext's storage lifetime is never shown
 
-**Severity:** Low   **Disposition:** DEFERRED (next patch release; Section D pre-mainnet "lifetime shown and an extension path stated")
+**Severity:** Low   **Disposition:** RESOLVED (0.0.38, commit pending; `tests/seal-view.operations.test.ts`, `tests/walrus.test.ts`, `tests/config.test.ts`)
 **Where:** `src/walrus.ts` (`WALRUS_EPOCHS`, default 5), `SealView.vue` (Confirm step, manifest)
 **Issue:** `storeBlob` stores the ciphertext for `VITE_WALRUS_EPOCHS` epochs (5 by default) and returns
 only the blob id; the publisher's `endEpoch` is discarded. Neither the Confirm step, the manifest nor the
@@ -302,13 +322,19 @@ a bad value makes the publisher refuse, so it fails closed. WALRUS lens *Epochs 
 tracked and an extension flow exists.
 **Impact:** sealed content silently becomes unrecoverable at expiry although the key servers still work and
 the manifest still validates. Availability only; the testnet default is short.
-**Remediation / evidence:** show the end epoch from `PublishResult.endEpoch` on the Confirm/result step and
-in the manifest (or a note and a link to walrus-ui), and validate `VITE_WALRUS_EPOCHS` as an integer in
-1..53.
+**Remediation / evidence:** `storeBlob` returns `{ blobId, endEpoch, blobObjectId }` from walrus-client
+0.0.28's `PublishResult` (`resource.endEpoch`, the created `Blob` object id). The Confirm step says the
+content is stored for N epochs and what happens after; the result shows "through epoch E", the `Blob`
+object id and the extension path (the Walrus asset manager, My blobs, since the object belongs to the
+user); the trust panel states the lifetime. The manifest is unchanged (its schema is seal-client's); the
+lifetime lives on the result and in the note. `VITE_WALRUS_EPOCHS` is parsed by `parseWalrusEpochs`
+(integer in 1..53; an empty build arg is the default; anything else disables sealing with the reason).
+Tests: end epoch and object id returned, the epochs and end epoch shown, the "not reported" wording, the
+parser's accepted and rejected values.
 
 ### F13 — The Confirm step omits what decides who can decrypt
 
-**Severity:** Low   **Disposition:** DEFERRED (next patch release; Section D pre-testnet "signing UX")
+**Severity:** Low   **Disposition:** RESOLVED (0.0.38, commit pending; `tests/seal-view.operations.test.ts`, `tests/confirm.test.ts`)
 **Where:** `src/components/SealView.vue` (Encrypt step 2, `onMounted` deep link)
 **Issue:** the Confirm step lists the policy label, the file and the label, not the policy parameters
 (the gate id, or the unlock time). A link `?gate=<id>` preselects the nft-gate policy and the gate in step
@@ -318,12 +344,17 @@ VUE lens *Signing UX* / SEAL *Metadata leakage*: show what is being sealed to.
 operator's pass holders can then decrypt it. Needs the user to overlook the field; seal-client refuses
 gates of another package and transferable ones (F7), so the gate must be a soulbound gate of the real
 package.
-**Remediation / evidence:** list every encrypt parameter on the Confirm step (with the gate's operator
-address from `gateOperators`), and say on the page when the gate came from a link.
+**Remediation / evidence:** the Confirm step lists every encrypt parameter (`confirmRows`: the gate id, or
+the unlock time as local time plus its UTC instant) and, for a gate, the operator address read with
+seal-client's `gateOperators` (an unreadable or foreign gate shows a warning with the reason). A gate
+that came from `?gate=` and was not changed shows a notice and a checkbox; **Encrypt & store** stays disabled
+until it is ticked, and `performEncrypt` refuses without it. Choosing another gate removes the requirement.
+Tests: gate id and operator shown, the unreadable-gate warning, the link confirmation (button disabled,
+operation refused, enabled after ticking), no prompt for a chosen gate or without a link.
 
 ### F14 — TypeScript hygiene: unguarded caller-keyed lookups and an unjustified cast
 
-**Severity:** Info   **Disposition:** DEFERRED (next patch release; two lines)
+**Severity:** Info   **Disposition:** RESOLVED (0.0.38, commit pending; `tests/config.test.ts`)
 **Where:** `src/config.ts` (`SEAL_POLICIES_DEPLOYMENTS[net]`, `ACCESS_GATE_DEPLOYMENTS[net]`,
 `SERVER_DEFAULTS[net]`, `WALRUS_DEFAULTS[net]`), `src/sealed-content.ts` (`client as never`)
 **Issue:** TS lens *Caller-keyed lookups*: these index records with a string through a cast, so a key such
@@ -333,12 +364,14 @@ selector, and a prototype key would yield no servers ("not configured"), so it f
 reachable. The `as never` cast that passes the wallet-adapter client to `gateOperators` carries no
 justification comment (TS lens *Assertions*).
 **Impact:** none today; a future caller passing a user-supplied name would meet the pitfall.
-**Remediation / evidence:** use `Object.hasOwn` (or call `sealPoliciesDeployment` / `accessGateDeployment`)
-and add the reason for the cast or fix the client type.
+**Remediation / evidence:** `config.ts` reads the four tables through `own()` (`Object.hasOwn`), so
+`constructor`, `__proto__` and similar names resolve to nothing; the `as never` cast in `sealed-content.ts`
+is removed (the wallet-adapter client satisfies seal-client 0.0.20's `SuiObjectClient` structurally;
+`vue-tsc` is clean). Test: prototype names yield no deployment, servers, publisher or aggregator.
 
 ### F15 — Repository and workflow hygiene
 
-**Severity:** Info   **Disposition:** DEFERRED (next patch release)
+**Severity:** Info   **Disposition:** RESOLVED (0.0.38, commit pending; (c) ADJUDICATED: the dependency is kept)
 **Where:** `.gitignore`, `package.json`, `.github/workflows/docker-publish.yml`
 **Issue:** (a) `.gitignore` has no `.env` pattern, although `.env.example` says to copy it to `.env.local`
 and never commit it (`.dockerignore` excludes `.env*.local`, so the image is safe); (b) the build passes
@@ -347,8 +380,14 @@ although both are public values baked into the bundle: a keyed aggregator URL pu
 bundle (ADR-0002 forbids it; `config.ts` never adds a key, but the URL itself is not checked); (c)
 `@mysten/wallet-standard` is a dependency that nothing in `src/` or `tests/` imports.
 **Impact:** none on behaviour; (b) hides public values from build logs and invites a mistake.
-**Remediation / evidence:** ignore `.env` and `.env.*` except `.env.example`; move the two values to
-repository variables; drop the dependency.
+**Remediation / evidence:** (a) `.gitignore` now ignores `.env` and `.env.*` except `.env.example`
+(`git check-ignore` confirms `.env.local` is ignored and `.env.example` is not). (b) `docker-publish.yml`
+passes `VITE_SEAL_SERVER_OBJECT_IDS_TESTNET` and `VITE_SEAL_AGGREGATOR_URLS_TESTNET` from `vars.` in all
+four build jobs; **the maintainer must create these two repository variables (same names, same values as
+the former secrets) before the next release, otherwise the testnet defaults apply**. (c) ADJUDICATED, kept:
+`@meddleware/wallet-adapter` lists `@mysten/wallet-standard >=0.21.0 <0.22` as a peer dependency, and this
+app is the host that must provide the single copy (access-gate-ui keeps it for the same reason); nothing in
+`src/` imports it directly.
 
 ### F16 — `connect-src` allows any https origin
 
@@ -363,7 +402,7 @@ No `'wasm-unsafe-eval'` is needed (no wasm). Revisit when the hosts are fixed fo
 
 ### F17 — The npm publish gate is a subset of CI
 
-**Severity:** Low   **Disposition:** ACCEPTED-RISK
+**Severity:** Low   **Disposition:** RESOLVED (0.0.38, commit pending)
 **Where:** `.github/workflows/npm-publish.yml`
 **Issue:** the npm job's `verify` runs `npm ci`, the audit gate, type-check and the unit tests, not the
 full CI workflow (linters, licence check). The image release (F8) does run the full workflow on the same
@@ -371,9 +410,10 @@ tag.
 **Impact:** a tag could publish the source package while the image job refuses the same commit. The
 package is source only (`npm pack --dry-run` 2026-10-09: `src`, `index.html`, `vite.config.ts`,
 `tsconfig.json`, README, CHANGELOG, LICENSE; no tests, fixtures or `.env*`).
-**Remediation / evidence:** accepted: a source mirror for the dashboard, OIDC-published with provenance,
-tag == version checked, idempotent, and opt-in through the `NPM_PUBLISH` variable. Calling `node-ci.yml`
-from `npm-publish.yml` would close it.
+**Remediation / evidence:** `npm-publish.yml` `verify` now calls `./.github/workflows/node-ci.yml` (as
+`docker-publish.yml` and access-gate-ui do), so a tag publishes the package only if the full CI passes;
+the publish job is otherwise unchanged (OIDC with provenance, tag == version checked, idempotent, opt-in
+through `NPM_PUBLISH`).
 
 ### F18 — The cosign identity pins the repository, not the workflow
 
@@ -409,9 +449,9 @@ The credential inventory (scope, holder, expiry, rotation) is the maintainer ite
 | I7 | No on-chain logic in the app | seal-client, walrus-client, access-gate-client | `suiBoundary` lint (eslint-config 0.0.2, clean 2026-10-09) | HOLDS |
 | I8 | Discovery lists the gate operator's pointers unless the user opts in | `sealed-content.ts` | `sealed-content.test.ts` | HOLDS (F7) |
 | I9 | Sealing refuses a gate that cannot be unlocked or is effectively public | `accessGateOriginalId` in the controller config; seal-client 0.0.18 | `seal-controller.test.ts` (config passed); refusal tested in seal-client | HOLDS (F7) |
-| I10 | The unit tests run on every change and every release | none (`node-ci.yml` has no test step) | none | GAP — see F9 |
-| I11 | An in-flight operation never finishes against a different network or account | none | none | GAP — see F11 |
-| I12 | What the content is sealed to, and for how long it is stored, is shown before storing | gate field in step 1; trust panel | source | GAP — see F12, F13 |
+| I10 | The unit tests run on every change and every release | `node-ci.yml` `npm test`, called by both release workflows | the workflows | HOLDS (F9) |
+| I11 | An in-flight operation never finishes against a different network or account | `operation-scope.ts` tokens + synchronous watcher in `SealView.vue`; config passed down | `seal-view.operations.test.ts`, `reseal-network.test.ts`, `operation-scope.test.ts` | HOLDS (F11) |
+| I12 | What the content is sealed to, and for how long it is stored, is shown before storing | Confirm step (parameters, gate operator, epochs); link confirmation; result shows the end epoch | `seal-view.operations.test.ts`, `confirm.test.ts` | HOLDS (F12, F13) |
 
 ### Lens categories
 
@@ -424,16 +464,16 @@ The credential inventory (scope, holder, expiry, rotation) is the maintainer ite
 | SEAL | Re-sealing | HOLDS — `resealCiphertext` decrypts under the old set and re-encrypts under the configured one; tested (`reseal.test.ts`) |
 | SEAL | Discovery registries | HOLDS — paginated and filtered in seal-client (`MAX_DISCOVERED` 200 here), operator-only by default (F7), labels rendered as text |
 | WALRUS | Storage path | publisher with `send_object_to` the user; reads strict, capped and bounded; the Blob is permanent |
-| WALRUS | Epochs & lifetime | GAP — 5 epochs by default, never shown, no expiry tracking (F12) |
+| WALRUS | Epochs & lifetime | HOLDS — 5 epochs by default (validated 1..53), shown on Confirm and the result with the end epoch, extension path stated; no expiry tracking beyond the shown end epoch (F12) |
 | WALRUS | Blob ownership, Confidentiality | HOLDS — the user owns the Blob object; the publisher sees only ciphertext |
 | WALRUS | Payment bounds, Relay authentication, Relay selection, Flow resumability | N/A — no relay, no tip and no gated upload; the publisher pays |
 | WALRUS | Size limits | client cap 10 MiB (`VITE_WALRUS_MAX_UPLOAD_BYTES`; public publishers cap at 10 MiB), UX only |
 | VUE | Untrusted rendering | HOLDS — labels, publishers, blob ids and manifest fields as text; sanitised download names; the plaintext is downloaded, never rendered |
-| VUE | Colour & links | GAP — white text on the accent in the dark theme (F10); no `--warning` text; no running-text links |
-| VUE | Build-time configuration | HOLDS — no secrets in `VITE_*`; custody and server sets public; every variable in `.env.example`; ids from `deployments` (VUE-M2); two public values are passed from repository secrets (F15) |
+| VUE | Colour & links | HOLDS — primary buttons use `--accent-contrast` (F10); no `--warning` text; one running-text link (the Walrus asset manager, accent colour) |
+| VUE | Build-time configuration | HOLDS — no secrets in `VITE_*`; custody and server sets public; every variable in `.env.example`; ids from `deployments` (VUE-M2); the two public values are passed from repository variables (F15) |
 | VUE | Test hooks | N/A — none; no test mode exists |
-| VUE | Signing UX | HOLDS for the wallet prompts (the SessionKey message and the pointer transaction are shown by the wallet; buttons are disabled while busy); GAP for what is sealed to on the Confirm step (F13) |
-| VUE | Shared-wallet state | HOLDS (I6) for sessions; GAP for in-flight operations (F11); the chain-id check and account-change events are wallet-adapter 0.0.17's (own audit) |
+| VUE | Signing UX | HOLDS for the wallet prompts (the SessionKey message and the pointer transaction are shown by the wallet; buttons are disabled while busy); the Confirm step lists what is sealed to and the gate operator, and a link-preselected gate needs a confirmation (F13) |
+| VUE | Shared-wallet state | HOLDS (I6) for sessions and (F11) for in-flight operations; the chain-id check and account-change events are wallet-adapter 0.0.17's (own audit) |
 | VUE | Browser storage | N/A — none |
 | VUE | Lazy boundaries | HOLDS — `SealController` and `@mysten/seal` load on first use |
 | VUE | Dual app / library | HOLDS — `SealView` has scoped styles and no shell chrome |
@@ -443,10 +483,10 @@ The credential inventory (scope, holder, expiry, rotation) is the maintainer ite
 | SUI_CLIENT | Execution result | HOLDS — wallet-adapter's executor throws on a failed transaction; the pointer publish shows the digest only after success |
 | SUI_CLIENT | Chain-access layering | HOLDS — `suiBoundary` forbids PTB and read logic outside `src/wallet.ts`; type-only SDK imports |
 | TS | Compiler strictness | HOLDS — `strict: true`, `vue-tsc --noEmit` in CI |
-| TS | Assertions, validation, money, promises, network I/O, encoding, dynamic code | HOLDS except F14 — no `eval`, no `fetch` in `src/` (the HTTP helpers are walrus-client's, with timeouts, https and redirect refusal); no money math; dynamic imports have literal specifiers; the catch blocks surface the message |
-| TS | Caller-keyed lookups | GAP (Info) — F14 |
-| TS | Packaging, supply chain | HOLDS — `files` whitelist (`npm pack --dry-run` clean); `npm ci`; audit gate; but the unit tests are not run in CI (F9) |
-| IMG | Base images, build context, reproducible build, no secrets, runtime user, scan, SBOM and notices | HOLDS (F8) — digest-pinned `node:24-slim` and static-server 0.1.7; `.dockerignore` excludes `node_modules`, `dist`, `.git`, `.github`, `.env*.local`; `npm ci`; no secret in any `ARG`/`ENV`; Trivy before cosign; lockfile in the image; `/THIRD_PARTY_LICENSES` served |
+| TS | Assertions, validation, money, promises, network I/O, encoding, dynamic code | HOLDS — no `eval`, no `fetch` in `src/` (the HTTP helpers are walrus-client's, with timeouts, https and redirect refusal); no money math; dynamic imports have literal specifiers; the catch blocks surface the message |
+| TS | Caller-keyed lookups | HOLDS — `Object.hasOwn` through `own()` (F14) |
+| TS | Packaging, supply chain | HOLDS — `files` whitelist (`npm pack --dry-run` clean); `npm ci`; audit gate; and the unit tests run in CI and in both release workflows (F9) |
+| IMG | Base images, build context, reproducible build, no secrets, runtime user, scan, SBOM and notices | HOLDS (F8) — digest-pinned `node:24-slim` and static-server 0.1.8; `.dockerignore` excludes `node_modules`, `dist`, `.git`, `.github`, `.env*.local`; `npm ci`; no secret in any `ARG`/`ENV`; Trivy before cosign; lockfile in the image; `/THIRD_PARTY_LICENSES` served |
 | IMG | Verification command | GAP accepted — the identity pins the repository (F18) |
 | IMG | Deployment pinning | HOLDS — digest in `config/images.yaml` and the overlay; the base manifest's tag label (`0.0.4`) is overridden by the overlay digest and is cosmetic |
 
@@ -456,18 +496,18 @@ The credential inventory (scope, holder, expiry, rotation) is the maintainer ite
 
 | Dependency | Pinned version | Liveness dependency? | CVE / audit status | Notes |
 | --- | --- | --- | --- | --- |
-| `@meddleware/seal-client` | `^0.0.19` (installed 0.0.19) | seal / decrypt | `npm audit` gate clean 2026-10-09 | latest |
-| `@meddleware/walrus-client` | `^0.0.27` | store / read | clean | latest |
-| `@meddleware/access-gate-client` | `^0.0.8` | gate suggestions, linked-gate check | clean | latest |
+| `@meddleware/seal-client` | `^0.0.20` (installed 0.0.20) | seal / decrypt | `npm audit` gate clean 2026-10-18 | latest |
+| `@meddleware/walrus-client` | `^0.0.28` | store / read | clean | latest |
+| `@meddleware/access-gate-client` | `^0.0.9` | gate suggestions, linked-gate check | clean | latest |
 | `@meddleware/wallet-adapter` | peer `>=0.0.12 <0.2.0`; dev `^0.0.17` | wallet | own audit | host's copy |
-| `@meddleware/ui` / `design-tokens` / `eslint-config` | `^0.1.31` / `^0.1.9` / `^0.0.2` | UI | own audits | latest published |
+| `@meddleware/ui` / `design-tokens` / `eslint-config` | `^0.1.31` / `^0.1.10` / `^0.0.2` | UI | own audits | latest published |
 | `@mysten/seal` | via seal-client peer (`^1.4.18`; installed 1.4.19) | crypto | clean | one copy |
 | `@mysten/sui` | `^2.33.2` (installed 2.35.0) | reads, transactions (type imports only here) | gate clean | one copy (`npm ls`); ADR-0001 baseline `^2.33.1` |
-| `@mysten/wallet-standard` | `^0.21.0` | none | clean | declared, imported nowhere in `src/` or `tests/` (F15) |
+| `@mysten/wallet-standard` | `^0.21.0` | none | clean | not imported here; kept because wallet-adapter's peer range needs the host to provide it (F15) |
 | Vue / Vite / TypeScript / vitest | 3.5.43 / 8.3 / 6.0.3 / 5.0.3 (plugin-vue 6.0.9, vue-tsc 3.3.12) | build | clean | TypeScript 7 and vitest 5-major follow-ups declined (decision); Node 24 LTS |
 | Key servers | `config.ts` | decrypt | — | ADR-0002; fail closed |
 | Walrus publisher / aggregator | per network | store / read | — | fail closed (no bytes) |
-| `static-server` / `node:24-slim` | 0.1.7 / digest-pinned | runtime / build | Trivy at release (F8); Go 1.26.9 | — |
+| `static-server` / `node:24-slim` | 0.1.8 / digest-pinned | runtime / build | Trivy at release (F8); Go 1.26.9 | — |
 | dev tooling | lockfile | no | GHSA-vfj7-8cjw-p6xm allowlisted to 2027-01-01 | `.github/audit-allowlist.json` |
 
 Shared-dependency matrix (TS lens): `@mysten/sui` dep `^2.33.2` (baseline `^2.33.1`, within range);
@@ -492,8 +532,8 @@ No API keys anywhere (D24). CI & release integrity: actions pinned by SHA (workf
 explicit `permissions:` per workflow and job (`id-token`/`attestations` only on the signing job, `id-token`
 only on the npm publish job); OIDC publish with a tag == version check; npm client pinned
 (`npm@11.20.0`); image release = full CI via `workflow_call` + Trivy + cosign + SPDX SBOM attestation +
-provenance, no `continue-on-error` on the public path (F8; the CI workflow lacks the tests, F9; the npm
-gate is a subset, F17); `npm ci` everywhere; audit gate in CI and the npm job; Dependabot weekly and
+provenance, no `continue-on-error` on the public path (F8); both release workflows call the full CI
+workflow including the tests (F9, F17); `npm ci` everywhere; audit gate in CI (called by both releases); Dependabot weekly and
 grouped for npm, Docker and Actions; no test-only build mode exists, so there is nothing to scan for; no
 job spends real funds.
 
@@ -527,7 +567,7 @@ Framing is `'self'` only; the dashboard embeds the view as a component, not a fr
 
 ### B.VUE-2 Build inputs and artifacts / IMG
 
-`node:24-slim@sha256:0e0ff40c…` builder and `static-server:0.1.7@sha256:2e227311…` runtime, both
+`node:24-slim@sha256:0e0ff40c…` builder and `static-server:0.1.8@sha256:e32cf42b…` runtime, both
 digest-pinned (Dependabot Docker group); `npm ci`; `.dockerignore` excludes local installs, build output,
 VCS data and every `.env*.local`; `npm run build && npm run licenses` run in the build stage; the runtime
 stage copies `dist` and the lockfile only; `USER 65534:65534`; no secret in any `ARG`/`ENV` (the build
@@ -556,16 +596,17 @@ manifests (F8).
 
 ## Section C — Test-coverage & hermetic/live split
 
-### C.1 Coverage grade — B (37/37, 2026-10-09)
+### C.1 Coverage grade — B (72/72, 2026-10-18)
 
-Vitest 5.0.3, 7 files: `config.test.ts` (servers, thresholds, custody, no API key), `seal-view.gating.test.ts`
+Vitest 5.0.3, 12 files: `config.test.ts` (servers, thresholds, custody, no API key), `seal-view.gating.test.ts`
 (gating and custody notices), `manifest-guard.test.ts` (schema, network, registry), `sealed-content.test.ts`
 (operators-only discovery, indexer), `walrus.test.ts` (permanent store, owner, already-certified, no
 publisher, cap, strict read), `seal-controller.test.ts` (ids and `PolicyConfig`), `reseal.test.ts` (re-seal
-flow with a mocked controller). The encrypt and decrypt flows, session clearing, the publish pointer,
-deep-link handling and mid-flight switches (F11) have no component tests. No Playwright suite exists.
-Gating variables: none; the suite is hermetic. The suite is not run by `node-ci.yml` or by the image
-release (F9); the npm job runs it.
+flow with a mocked controller), plus (0.0.38) `seal-view.operations.test.ts` (mid-flight network and
+account switches, the lifetime, the Confirm step, the `?gate=` confirmation), `reseal-network.test.ts`,
+`operation-scope.test.ts`, `confirm.test.ts` and `primary-button-contrast.test.ts`. Session clearing and the
+publish pointer still have no component tests. No Playwright suite exists. Gating variables: none; the
+suite is hermetic. `node-ci.yml` runs it, and both release workflows call that workflow (F9).
 
 ### C.2 Hermetic vs. live paths
 
@@ -574,13 +615,13 @@ release (F9); the npm job runs it.
 | Config, gating, manifest, discovery, re-seal wiring | yes | — | `npm test` |
 | Real seal / decrypt | no | testnet servers | seal-client `test:integration` and weekly live suite (PASS 2026-10-09 against the new packages); no browser run of this UI |
 | nft-gate decrypt with a pass | no | testnet + pass | manual |
-| Browser contrast (axe) of this app's own components | no | `@meddleware/ui` gallery covers shared components only | F10 |
+| Browser contrast (axe) of this app's own components | no | the rule is pinned by a CSS test; the per-theme, per-season measurement is design-tokens' `check:contrast`; `@meddleware/ui` gallery covers shared components | F10 |
 
 ## Section D — Deployment-readiness gates
 
 ### pre-localnet
 
-- [x] builds; type-check, three linters, unit tests green (2026-10-09); no secrets
+- [x] builds; type-check, three linters, unit tests green (2026-10-18); no secrets
 - [x] no `v-html`; no dynamic `:href`; no secret `VITE_*`; every variable in `.env.example`
 
 ### pre-testnet
@@ -591,17 +632,17 @@ release (F9); the npm job runs it.
 - [x] consumed IDs are the latest on-chain version — live bundle carries `0x0c8f7349…`, `0xee0403ba…` and `0xd7ddaa94…` only (B.SC-1)
 - [x] threshold ≤ configured servers; SessionKey cleared on account switch and disconnect (I1, I6)
 - [x] live decrypt round trip — seal-client's live testnet suite PASS 2026-10-09 (the UI itself is not browser-run, C.2)
-- [ ] every test project runs in CI — F9 (next patch)
-- [ ] state invalidated on switch in every view, including in-flight operations — F11 (next patch)
-- [ ] signing UX shows what is sealed to — F13 (next patch)
-- [ ] colour: text meets AA in both themes — F10 (next patch)
+- [x] every test project runs in CI — `node-ci.yml` `npm test`, called by `docker-publish.yml` and `npm-publish.yml` `verify` (F9, 0.0.38)
+- [x] state invalidated on switch in every view, including in-flight operations — operation scope, config passed down, `seal-view.operations.test.ts`, `reseal-network.test.ts` (F11, 0.0.38)
+- [x] signing UX shows what is sealed to — Confirm step parameters + gate operator, `?gate=` confirmation, `seal-view.operations.test.ts` (F13, 0.0.38)
+- [x] colour: text meets AA in both themes — `--accent-contrast` on the primary button, `primary-button-contrast.test.ts` (F10, 0.0.38)
 
 ### pre-mainnet
 
 - [ ] mainnet `seal_policies` published and recorded; live round trip on the mainnet servers — mainnet-blocked
 - [ ] operators' Open-mode terms confirmed — maintainer item (`OPERATOR_TASKS.md` "Mainnet Seal key servers")
 - [ ] UpgradeCap multisig transfer and burn date (CUSTODY.md) or the notice kept — mainnet-blocked (`OPERATOR_TASKS.md` "Mainnet release custody")
-- [ ] storage lifetime shown and an extension path stated — F12 (next patch, before mainnet)
+- [x] storage lifetime shown and an extension path stated — Confirm step, result with the end epoch, trust panel, epochs validated 1..53 (F12, 0.0.38)
 - [x] CSP and HSTS on the one hosting path (B.VUE-1)
 - [ ] registry credential inventory and rotation (F19) — `OPERATOR_TASKS.md` "Image registry credentials"
 - [ ] external review — maintainer item (`OPERATOR_TASKS.md` "Funding, grants and an external audit")
@@ -621,27 +662,23 @@ release (F9); the npm job runs it.
 ## Normative requirements (MUST / MUST NOT)
 
 - **SEAL-M1–SEAL-M3, SEAL-M5** — hold through seal-client; **SEAL-M4** — holds (I1); **SEAL-M6–M8**
-  — hold (I3); the Confirm step does not repeat the identity inputs (F13).
+  — hold (I3); the Confirm step repeats the identity inputs and the gate operator (F13).
 - **SC-M1–SC-M10** — hold through the libraries (SC-M6 to SC-M9 are N/A: this app verifies no
   signature, binds no event, signs no dry-run PTB and extracts no created object). SC-M5: network, ids,
   client and wallet chain follow one selector.
-- **VUE-M1–VUE-M9** — hold (VUE-M3 N/A; VUE-M7 N/A); VUE-M4 holds for the wallet prompts with one gap on
-  the Confirm step (F13); VUE-M6 holds for sessions with one gap for in-flight operations (F11); the
-  *Colour & links* category has one open defect (F10).
+- **VUE-M1–VUE-M9** — hold (VUE-M3 N/A; VUE-M7 N/A); VUE-M4 holds for the wallet prompts and the Confirm
+  step (F13); VUE-M6 holds for sessions and in-flight operations (F11); the *Colour & links* category holds
+  (F10).
 - **WAL-M1–WAL-M9** — hold for the publisher path (WAL-M1 to M3, M8 and M9 are N/A: no relay, tip or gated
-  upload); WAL-M4 is not met: the lifetime is not shown (F12).
+  upload); WAL-M4 holds: the lifetime and end epoch are shown (F12).
 - **IMG-M1–IMG-M8** — hold; IMG-M8's verification command pins the repository only (F18).
 - **TS-M1–TS-M9** — hold; TS-M9: `@mysten/sui` is a single copy, `@mysten/seal` is seal-client's peer,
-  wallet-adapter is a peer; the lens's rule that every test project runs in CI is not met (F9); F14 is
-  Info.
+  wallet-adapter is a peer; every test project runs in CI (F9); F14 is fixed.
 
 ## Implementation suggestions (SHOULD / MAY)
 
-- SHOULD add `npm test` to `node-ci.yml` (F9) and `color: var(--accent-contrast)` to `button.primary` (F10).
-- SHOULD bind each operation to the network and account it started with (F11), and show the end epoch and
-  the sealed-to parameters (F12, F13).
-- SHOULD add component tests for the encrypt flow (manifest network, owner), the deep-link preselection and
-  session clearing.
+- SHOULD add component tests for session clearing and the publish pointer (the encrypt flow, the deep-link
+  preselection and mid-flight switches are covered since 0.0.38).
 - MAY show the policy package's custody state (UpgradeCap live or burned) read from its
   `deployments.json` once the burn is recorded.
 - MAY run a Trivy configuration scan of the Dockerfile and manifests in CI.
@@ -654,8 +691,8 @@ None (ADR-0002 OQs decided: D24).
 
 - **Key-server collusion or outage** — t servers can decrypt; fewer than t online blocks decryption.
 - **Policy upgrades** — until the cap is burned.
-- **Walrus availability** — stored ciphertext depends on Walrus storage epochs, and the user is not told
-  when they end (F12).
+- **Walrus availability** — stored ciphertext depends on Walrus storage epochs; the user is told the end
+  epoch and how to extend (F12), but nothing reminds them before it passes.
 - **Superseded namespaces** — content sealed under earlier testnet `seal_policies` packages no longer
   decrypts (decision: legacy namespaces unsupported).
 
@@ -670,3 +707,4 @@ None (ADR-0002 OQs decided: D24).
 - 2026-10-03 — consumer wave: 0.0.31 (seal-client 0.0.15, walrus-client 0.0.25, access-gate-client 0.0.4, ui 0.1.30); deployed; live sweep clean.
 - 2026-10-08 — Lens dates reconciled with the registry (`check-template-dates.mjs`): base 2026-10-08, and SUI_CLIENT/GO 2026-10-08 and TS 2026-10-03 where cited. The changes (AUTH/PLATFORM/MCP/DB registered, the GO token row moved to AUTH, JSR in trusted publishing, layered injection guards) alter no disposition here.
 - 2026-10-09 — re-verified at 0.0.37 (`1c9a03e`) against the code, the workflows, the manifests and the live site/bundle. Template dates now VUE/TS/IMG 2026-10-08; front matter gains the Seal, Walrus, VUE, TS and IMG fields. F1–F6 re-checked (F1 evidence extended to the registry check and the right test file; F2 residual write-side note; F6 still true under the republished package). New: F7 RESOLVED (operator-only discovery, linked and soulbound gates, registry-checked manifests; seal-client 0.0.16–0.0.19), F8 RESOLVED (image release gate, Trivy, notices, lockfile, `USER 65534`, static-server 0.1.7), F9 DEFERRED (the known `node-ci.yml` gap: no `npm test`, present here), F10–F15 DEFERRED (primary button contrast, in-flight operations, hidden storage lifetime, Confirm step omits the sealed-to parameters, TypeScript hygiene, repository hygiene), F16–F18 ACCEPTED-RISK, F19 DEFERRED (maintainer). The design-tokens F10 check (`--warning` as text) is clean here. The republished `seal_policies` `0x0c8f7349…` and `access_gate` `0xd7ddaa94…` are the only ids in the live bundle. Counts: 37/37 (was 31/31), audit gate 1 allowlisted / 0 open. Section D gates ticked with evidence; unticked: four next-patch items (F9–F13), F12 as a pre-mainnet gate, and the mainnet/maintainer items.
+- 2026-10-18 — fix wave at 0.0.38 (commit pending). Dependencies: seal-client ^0.0.20, walrus-client ^0.0.28, access-gate-client ^0.0.9, design-tokens ^0.1.10 (ui, wallet-adapter and eslint-config already at their latest); runtime base static-server 0.1.8 (`sha256:e32cf42b…4000`, read from quay.io). F9 RESOLVED (CI already ran `npm test`; `npm-publish.yml` `verify` now calls `node-ci.yml`), F10 RESOLVED (`--accent-contrast`), F11 RESOLVED (operation scope, config passed down, re-seal refusal), F12 RESOLVED (end epoch, extension path, epochs validated), F13 RESOLVED (Confirm parameters and operator, `?gate=` confirmation), F14 RESOLVED (`Object.hasOwn`, cast removed), F15 RESOLVED (`.env*` ignored, `vars.` for the two public values; `@mysten/wallet-standard` kept as the wallet-adapter peer), F17 RESOLVED (npm gate = full CI). F16, F18 stay ACCEPTED-RISK (no single fix: the hosts cannot be enumerated; the identity anchor is a workspace-script override); F19 stays with the maintainer. Counts: 72/72 in 12 files (was 37/37 in 7), audit gate 1 allowlisted / 0 open. Section D: the five code gates ticked (F9, F10, F11, F12, F13); unticked: the mainnet and maintainer items only. Maintainer action: create the repository variables `VITE_SEAL_SERVER_OBJECT_IDS_TESTNET` and `VITE_SEAL_AGGREGATOR_URLS_TESTNET` (formerly secrets) if they carry non-default values.

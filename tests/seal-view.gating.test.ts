@@ -10,7 +10,7 @@ async function mountWith(problem: string | null, network = 'testnet', custody: '
   vi.resetModules()
   vi.doMock('../src/config.js', () => ({
     network: ref(network),
-    activeConfig: computed(() => ({ network, problem, custody, seal: problem ? null : { originalId: '0x1', publishedAt: '0x1' } })),
+    activeConfig: computed(() => ({ network, problem, custody, walrusEpochs: 5, seal: problem ? null : { originalId: '0x1', publishedAt: '0x1' } })),
   }))
   vi.doMock('../src/wallet.js', () => ({
     useWallet: () => ({
@@ -26,7 +26,7 @@ async function mountWith(problem: string | null, network = 'testnet', custody: '
     clearSealSessions: vi.fn(),
   }))
   vi.doMock('../src/walrus.js', () => ({ storeBlob: vi.fn(), readBlob: vi.fn() }))
-  vi.doMock('../src/sealed-content.js', () => ({ discoverSealedContent: vi.fn() }))
+  vi.doMock('../src/sealed-content.js', () => ({ discoverSealedContent: vi.fn(), gateOperatorsFor: vi.fn() }))
   const { default: SealView } = await import('../src/components/SealView.vue')
   return shallowMount(SealView)
 }

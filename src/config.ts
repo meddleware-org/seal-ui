@@ -16,6 +16,11 @@ const env: EnvSource = (import.meta as unknown as { env?: EnvSource }).env ?? {}
 /** The active network (read-only ref). */
 export const network = useNetwork().network
 
+/** An own-property lookup: a caller-supplied key such as `constructor` never resolves to a prototype member. */
+function own<T>(table: Record<string, T>, key: string): T | undefined {
+  return Object.hasOwn(table, key) ? table[key] : undefined
+}
+
 function csv(v: string | undefined): string[] {
   return (v ?? '').split(',').map((s) => s.trim()).filter(Boolean)
 }
@@ -61,6 +66,25 @@ const WALRUS_DEFAULTS: Record<string, { publisher: string; aggregator: string }>
   mainnet: { publisher: '', aggregator: 'https://aggregator.walrus-mainnet.walrus.space' },
 }
 
+/** Walrus accepts 1..53 storage epochs per store/extend. */
+export const WALRUS_MAX_EPOCHS = 53
+
+/** Default ciphertext lifetime in Walrus storage epochs. */
+export const DEFAULT_WALRUS_EPOCHS = 5
+
+/**
+ * The storage lifetime in epochs from a raw `VITE_WALRUS_EPOCHS` value: a missing value is the
+ * default; anything that is not an integer in 1..53 is an error (the publisher would refuse it).
+ */
+export function parseWalrusEpochs(raw: string | undefined): { epochs: number; error: string | null } {
+  if (raw === undefined || raw.trim() === '') return { epochs: DEFAULT_WALRUS_EPOCHS, error: null }
+  const n = Number(raw)
+  if (!/^\d+$/.test(raw.trim()) || !Number.isInteger(n) || n < 1 || n > WALRUS_MAX_EPOCHS) {
+    return { epochs: DEFAULT_WALRUS_EPOCHS, error: `VITE_WALRUS_EPOCHS must be an integer in [1, ${WALRUS_MAX_EPOCHS}]; got "${raw}"` }
+  }
+  return { epochs: n, error: null }
+}
+
 /**
  * The threshold error for a committee, or null when the pair is valid. A threshold no committee could
  * meet (or a non-integer one) is reported instead of failing at the first decrypt.
@@ -94,6 +118,8 @@ export interface SealConfig {
   custody: KeyCustody
   walrusPublisher: string
   walrusAggregator: string
+  /** Storage epochs for the ciphertext (`VITE_WALRUS_EPOCHS`, default 5). Meaningless when `problem` is set. */
+  walrusEpochs: number
   /** Why sealing is unavailable on this network, or null when it is configured. */
   problem: string | null
 }
@@ -102,10 +128,10 @@ export interface SealConfig {
 export function sealConfig(net: string, envSource: EnvSource = env): SealConfig {
   const NET = net.toUpperCase()
   const netEnv = (base: string) => envSource[`${base}_${NET}`]
-  const seal = (SEAL_POLICIES_DEPLOYMENTS as Record<string, SealPoliciesDeployment>)[net] ?? null
-  const accessGate = (ACCESS_GATE_DEPLOYMENTS as Record<string, AccessGateDeployment>)[net] ?? null
+  const seal = own(SEAL_POLICIES_DEPLOYMENTS as Record<string, SealPoliciesDeployment>, net) ?? null
+  const accessGate = own(ACCESS_GATE_DEPLOYMENTS as Record<string, AccessGateDeployment>, net) ?? null
 
-  const defaults = SERVER_DEFAULTS[net]
+  const defaults = own(SERVER_DEFAULTS, net)
   const envIds = csv(netEnv('VITE_SEAL_SERVER_OBJECT_IDS'))
   const envAggs = csv(netEnv('VITE_SEAL_AGGREGATOR_URLS'))
   const ids = envIds.length ? envIds : (defaults?.ids ?? [])
@@ -122,8 +148,9 @@ export function sealConfig(net: string, envSource: EnvSource = env): SealConfig 
       ? null
       : `VITE_SEAL_KEY_CUSTODY_${NET} must be "independent" or "operator"; got "${rawCustody}"`
 
-  const walrus = WALRUS_DEFAULTS[net]
-  const problem = custodyError ?? (!seal
+  const walrus = own(WALRUS_DEFAULTS, net)
+  const lifetime = parseWalrusEpochs(envSource.VITE_WALRUS_EPOCHS)
+  const problem = custodyError ?? lifetime.error ?? (!seal
     ? `Sealed Storage is not available on ${net}: no seal_policies deployment is recorded for it.`
     : servers.length === 0
       ? `Sealed Storage is not configured on ${net}: set VITE_SEAL_SERVER_OBJECT_IDS_${NET} (and VITE_SEAL_AGGREGATOR_URLS_${NET} for a committee).`
@@ -138,6 +165,7 @@ export function sealConfig(net: string, envSource: EnvSource = env): SealConfig 
     custody,
     walrusPublisher: netEnv('VITE_WALRUS_PUBLISHER') || walrus?.publisher || '',
     walrusAggregator: netEnv('VITE_WALRUS_AGGREGATOR') || walrus?.aggregator || '',
+    walrusEpochs: lifetime.epochs,
     problem,
   }
 }
@@ -151,7 +179,7 @@ export function aggregatorUrlFor(net: string, objectId: string, envSource: EnvSo
   const norm = (id: string) => `0x${id.toLowerCase().replace(/^0x/, '').padStart(64, '0')}`
   const fromConfig = sealConfig(net, envSource).servers.find((s) => norm(s.objectId) === norm(objectId))
   if (fromConfig?.aggregatorUrl) return fromConfig.aggregatorUrl
-  const d = SERVER_DEFAULTS[net]
+  const d = own(SERVER_DEFAULTS, net)
   const i = d ? d.ids.findIndex((id) => norm(id) === norm(objectId)) : -1
   return i >= 0 ? d?.aggs[i] : undefined
 }
@@ -164,9 +192,6 @@ export const activeConfig = computed(() => sealConfig(network.value))
  * an operator-run publisher may allow more via VITE_WALRUS_MAX_UPLOAD_BYTES.
  */
 export const WALRUS_MAX_UPLOAD_BYTES = Number(env.VITE_WALRUS_MAX_UPLOAD_BYTES || String(10 * 1024 * 1024))
-
-/** Default blob lifetime (Walrus storage epochs). */
-export const WALRUS_EPOCHS = Number(env.VITE_WALRUS_EPOCHS || '5')
 
 /** Optional read-indexer for sealed-content discovery (display data; falls back to the full node). */
 export const INDEXER_URL: string = env.VITE_INDEXER_URL || ''

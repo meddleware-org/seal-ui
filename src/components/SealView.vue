@@ -17,11 +17,13 @@ import {
   type FieldSuggestion,
 } from '@meddleware/seal-client'
 import { checkManifestForNetwork } from '../manifest-guard.js'
+import { confirmRows } from '../confirm.js'
+import { createOperationScope } from '../operation-scope.js'
 import { WalletGuard } from '@meddleware/wallet-adapter'
 import { useWallet, getSuiClient } from '../wallet.js'
 import { registry, getSealController, clearSealSessions, resealCiphertext } from '../seal.js'
 import { storeBlob, readBlob } from '../walrus.js'
-import { discoverSealedContent } from '../sealed-content.js'
+import { discoverSealedContent, gateOperatorsFor } from '../sealed-content.js'
 import { activeConfig, network } from '../config.js'
 
 const { account, signPersonalMessage, signAndExecute } = useWallet()
@@ -73,6 +75,7 @@ onMounted(() => {
     encGateManual.value = true
     unlockGateId.value = gate
     unlockGateManual.value = true
+    linkedGateId.value = gate
   }
 })
 const busy = ref(false)
@@ -129,9 +132,23 @@ function fieldInputType(kind: string): string {
   if (kind === 'boolean') return 'checkbox'
   return 'text'
 }
+// A gate id that came from the page URL (?gate=), not from the user: sealing to it needs an explicit OK.
+const linkedGateId = ref<string | null>(null)
+const linkedGateConfirmed = ref(false)
+const needsLinkConfirm = computed(
+  () => linkedGateId.value !== null && encType.value === 'nft-gate' && encValues.value.gateId === linkedGateId.value,
+)
+watch(
+  () => encValues.value.gateId,
+  () => {
+    linkedGateConfirmed.value = false
+  },
+)
 const encFile = ref<File | null>(null)
 const encLabel = ref('')
 const manifest = ref<SealedManifest | null>(null)
+/** How long the ciphertext is stored: the publisher's end epoch (when reported) and the epochs requested. */
+const stored = ref<{ endEpoch?: number; epochs: number; blobObjectId?: string } | null>(null)
 
 function onEncFile(e: Event): void {
   encFile.value = (e.target as HTMLInputElement).files?.[0] ?? null
@@ -145,27 +162,51 @@ watch(
   },
 )
 
-// A network switch invalidates everything shown for the previous network.
-watch(network, () => {
-  manifest.value = null
-  publishDigest.value = null
-  discovered.value = []
-  status.value = null
-  errorMsg.value = null
-})
+// Operations are bound to the network and account they started on: a switch invalidates them (they
+// drop their result after their next await, so nothing lands on the new state) and a network
+// switch also clears everything shown for the previous network. The watcher is synchronous so an
+// operation resuming after the change always sees it.
+const opScope = createOperationScope()
+watch(
+  [network, () => account.value?.address],
+  ([net, addr], [prevNet, prevAddr]) => {
+    if (net === prevNet && addr === prevAddr) return
+    opScope.invalidate()
+    const interrupted = busy.value
+    busy.value = false
+    if (net !== prevNet) {
+      manifest.value = null
+      stored.value = null
+      publishDigest.value = null
+      discovered.value = []
+      status.value = null
+      errorMsg.value = null
+    }
+    if (interrupted) {
+      status.value = 'The network or account changed, so the operation in progress was discarded. Nothing from it is shown.'
+    }
+  },
+  { flush: 'sync' },
+)
+
+// The newest suggestion request wins: an answer for a previous account or network is ignored.
+let encSuggestSeq = 0
+let unlockSuggestSeq = 0
 
 watch(
   [() => account.value?.address, encProvider],
   async ([, provider]) => {
+    const seq = ++encSuggestSeq
     if (encType.value !== 'nft-gate') { encGateSuggestions.value = []; return }
     encGateLoading.value = true
     encGateManual.value = false
     try {
-      encGateSuggestions.value = await fetchGateSuggestions(provider)
+      const result = await fetchGateSuggestions(provider)
+      if (seq === encSuggestSeq) encGateSuggestions.value = result
     } catch {
-      encGateSuggestions.value = []
+      if (seq === encSuggestSeq) encGateSuggestions.value = []
     } finally {
-      encGateLoading.value = false
+      if (seq === encSuggestSeq) encGateLoading.value = false
     }
   },
 )
@@ -174,15 +215,17 @@ watch(
   [() => account.value?.address, tab, network],
   async ([, t]) => {
     if (t !== 'unlock') return
+    const seq = ++unlockSuggestSeq
     const nftGateProvider = providers.value.find((p) => p.type === 'nft-gate') ?? null
     unlockGateLoading.value = true
     unlockGateManual.value = false
     try {
-      unlockGateSuggestions.value = await fetchGateSuggestions(nftGateProvider)
+      const result = await fetchGateSuggestions(nftGateProvider)
+      if (seq === unlockSuggestSeq) unlockGateSuggestions.value = result
     } catch {
-      unlockGateSuggestions.value = []
+      if (seq === unlockSuggestSeq) unlockGateSuggestions.value = []
     } finally {
-      unlockGateLoading.value = false
+      if (seq === unlockSuggestSeq) unlockGateLoading.value = false
     }
   },
 )
@@ -191,12 +234,26 @@ async function performEncrypt(): Promise<void> {
   errorMsg.value = null
   status.value = null
   manifest.value = null
+  stored.value = null
   const provider = encProvider.value
   if (!provider) return
-  if (!encFile.value) {
+  const file = encFile.value
+  if (!file) {
     errorMsg.value = 'Choose a file to encrypt.'
     return
   }
+  const owner = account.value?.address
+  if (!owner) {
+    errorMsg.value = 'Connect your wallet to store the ciphertext.'
+    return
+  }
+  if (needsLinkConfirm.value && !linkedGateConfirmed.value) {
+    errorMsg.value = 'Confirm that you want to seal to the gate from the link.'
+    return
+  }
+  // Everything below is bound to this network, config and owner, whatever the wallet does meanwhile.
+  const op = opScope.begin()
+  const cfg = activeConfig.value
   busy.value = true
   try {
     const params: Record<string, unknown> = {}
@@ -206,28 +263,54 @@ async function performEncrypt(): Promise<void> {
       if (v !== undefined && v !== '') params[f.name] = coerce(f.kind, v)
     }
     status.value = 'Encrypting…'
-    const data = new Uint8Array(await encFile.value.arrayBuffer())
-    const { id, ciphertext } = await (await getSealController()).encrypt(provider.type, params, data)
+    const data = new Uint8Array(await file.arrayBuffer())
+    if (!op.isCurrent()) return
+    const { id, ciphertext } = await (await getSealController(cfg)).encrypt(provider.type, params, data)
+    if (!op.isCurrent()) return
     status.value = 'Storing ciphertext on Walrus…'
-    const owner = account.value?.address
-    if (!owner) throw new Error('Connect your wallet to store the ciphertext.')
-    const blobId = await storeBlob(ciphertext, { sendObjectTo: owner })
+    const result = await storeBlob(ciphertext, { sendObjectTo: owner, config: cfg })
+    if (!op.isCurrent()) return
     manifest.value = {
       policyType: provider.type,
       id,
-      blobId,
-      network: network.value,
+      blobId: result.blobId,
+      network: cfg.network,
       params,
-      label: encLabel.value || encFile.value.name,
+      label: encLabel.value || file.name,
     }
+    stored.value = { endEpoch: result.endEpoch, epochs: cfg.walrusEpochs, blobObjectId: result.blobObjectId }
     status.value = 'Sealed. Keep the manifest below — you need it to decrypt.'
     encStep.value = 2
   } catch (e) {
-    errorMsg.value = e instanceof Error ? e.message : String(e)
+    if (op.isCurrent()) errorMsg.value = e instanceof Error ? e.message : String(e)
   } finally {
-    busy.value = false
+    if (op.isCurrent()) busy.value = false
   }
 }
+
+// The Confirm step lists every parameter the content is sealed to. For a gate it also reads who
+// operates it (the gate's payment recipient), so the user sees whose pass-holders will be able to decrypt.
+const confirmParams = computed(() => (encProvider.value ? confirmRows(encProvider.value.describe().encryptFields, encValues.value) : []))
+const gateOperator = ref<{ gateId: string; state: 'loading' | 'ok' | 'error'; text: string } | null>(null)
+let gateOperatorSeq = 0
+watch(
+  [encStep, () => encValues.value.gateId, encType, () => activeConfig.value.network],
+  async ([step, gateId, type]) => {
+    const seq = ++gateOperatorSeq
+    gateOperator.value = null
+    if (step !== 2 || type !== 'nft-gate' || typeof gateId !== 'string' || !gateId) return
+    const cfg = activeConfig.value
+    gateOperator.value = { gateId, state: 'loading', text: '' }
+    try {
+      const operators = await gateOperatorsFor(gateId, cfg)
+      if (seq === gateOperatorSeq) gateOperator.value = { gateId, state: 'ok', text: operators.join(', ') }
+    } catch (e) {
+      if (seq === gateOperatorSeq) {
+        gateOperator.value = { gateId, state: 'error', text: e instanceof Error ? e.message : String(e) }
+      }
+    }
+  },
+)
 
 function downloadManifest(): void {
   if (!manifest.value) return
@@ -263,10 +346,13 @@ async function performDecrypt(): Promise<void> {
     errorMsg.value = 'Paste or upload a valid manifest.'
     return
   }
-  if (!account.value) {
+  const owner = account.value?.address
+  if (!owner) {
     errorMsg.value = 'Connect your wallet to decrypt.'
     return
   }
+  const op = opScope.begin()
+  const cfg = activeConfig.value
   busy.value = true
   try {
     const params: Record<string, unknown> = { ...(m.params ?? {}) }
@@ -278,18 +364,20 @@ async function performDecrypt(): Promise<void> {
       }
     }
     status.value = 'Fetching ciphertext from Walrus…'
-    const ciphertext = await readBlob(m.blobId)
+    const ciphertext = await readBlob(m.blobId, cfg)
+    if (!op.isCurrent()) return
     status.value = 'Requesting decryption keys — approve the signature in your wallet…'
-    const plaintext = await (await getSealController()).decrypt(m.policyType, params, m.id, ciphertext, {
-      address: account.value.address,
+    const plaintext = await (await getSealController(cfg)).decrypt(m.policyType, params, m.id, ciphertext, {
+      address: owner,
       signPersonalMessage,
     })
+    if (!op.isCurrent()) return
     triggerDownload(new Blob([plaintext.slice().buffer as ArrayBuffer]), safeFileName(m.label, 'decrypted'))
     status.value = 'Decrypted — download started.'
   } catch (e) {
-    errorMsg.value = e instanceof Error ? e.message : String(e)
+    if (op.isCurrent()) errorMsg.value = e instanceof Error ? e.message : String(e)
   } finally {
-    busy.value = false
+    if (op.isCurrent()) busy.value = false
   }
 }
 
@@ -307,10 +395,13 @@ async function performReseal(): Promise<void> {
     errorMsg.value = 'Paste or upload a valid manifest.'
     return
   }
-  if (!account.value) {
+  const owner = account.value?.address
+  if (!owner) {
     errorMsg.value = 'Connect your wallet to re-seal.'
     return
   }
+  const op = opScope.begin()
+  const cfg = activeConfig.value
   busy.value = true
   try {
     const encryptParams: Record<string, unknown> = { ...(m.params ?? {}) }
@@ -323,34 +414,38 @@ async function performReseal(): Promise<void> {
       }
     }
     status.value = 'Fetching ciphertext from Walrus…'
-    const ciphertext = await readBlob(m.blobId)
+    const ciphertext = await readBlob(m.blobId, cfg)
+    if (!op.isCurrent()) return
     status.value = 'Requesting keys from the original key servers — approve the signature in your wallet…'
     const resealed = await resealCiphertext(m.policyType, decryptParams, encryptParams, m.id, ciphertext, {
-      address: account.value.address,
+      address: owner,
       signPersonalMessage,
     })
+    if (!op.isCurrent()) return
     if (!resealed) {
       status.value = 'This content is already sealed to the current key servers; nothing to do.'
       return
     }
     status.value = 'Storing the re-sealed ciphertext on Walrus…'
-    const blobId = await storeBlob(resealed.ciphertext, { sendObjectTo: account.value.address })
+    const result = await storeBlob(resealed.ciphertext, { sendObjectTo: owner, config: cfg })
+    if (!op.isCurrent()) return
     manifest.value = {
       policyType: m.policyType,
       id: resealed.id,
-      blobId,
-      network: network.value,
+      blobId: result.blobId,
+      network: cfg.network,
       params: encryptParams,
       label: m.label,
     }
+    stored.value = { endEpoch: result.endEpoch, epochs: cfg.walrusEpochs, blobObjectId: result.blobObjectId }
     publishDigest.value = null
     status.value = 'Re-sealed. Download the new manifest; the old one still needs the old key servers.'
     tab.value = 'encrypt'
     encStep.value = 2
   } catch (e) {
-    errorMsg.value = e instanceof Error ? e.message : String(e)
+    if (op.isCurrent()) errorMsg.value = e instanceof Error ? e.message : String(e)
   } finally {
-    busy.value = false
+    if (op.isCurrent()) busy.value = false
   }
 }
 
@@ -368,11 +463,17 @@ async function performPublish(): Promise<void> {
     errorMsg.value = 'Connect your wallet to publish.'
     return
   }
+  const op = opScope.begin()
+  const cfg = activeConfig.value
+  if (m.network !== cfg.network) {
+    errorMsg.value = `This manifest is for '${m.network}', but this app is on '${cfg.network}'.`
+    return
+  }
   busy.value = true
   try {
     status.value = 'Publishing on-chain pointer — approve the transaction in your wallet…'
-    const seal = activeConfig.value.seal
-    if (!seal) throw new Error(activeConfig.value.problem ?? 'Sealed Storage is not available on this network.')
+    const seal = cfg.seal
+    if (!seal) throw new Error(cfg.problem ?? 'Sealed Storage is not available on this network.')
     const tx = buildPublishSealedContentTransaction({ publishedAt: seal.publishedAt, policyConfigId: seal.policyConfigId }, {
       gateId: String(m.params.gateId),
       blobId: m.blobId,
@@ -380,12 +481,13 @@ async function performPublish(): Promise<void> {
       label: m.label ?? '',
     })
     const { digest } = await signAndExecute(tx)
+    if (!op.isCurrent()) return
     publishDigest.value = digest
     status.value = 'Published — gate pass-holders can now discover and unlock this content.'
   } catch (e) {
-    errorMsg.value = e instanceof Error ? e.message : String(e)
+    if (op.isCurrent()) errorMsg.value = e instanceof Error ? e.message : String(e)
   } finally {
-    busy.value = false
+    if (op.isCurrent()) busy.value = false
   }
 }
 
@@ -404,24 +506,27 @@ async function performDiscover(): Promise<void> {
     errorMsg.value = 'Enter a gate id to search.'
     return
   }
+  const op = opScope.begin()
+  const cfg = activeConfig.value
   busy.value = true
   try {
     status.value = 'Searching for sealed content…'
-    discovered.value = await discoverSealedContent(unlockGateId.value, { includeOthers: includeOthers.value })
-    status.value = discovered.value.length
-      ? `Found ${discovered.value.length} item(s).`
-      : 'No sealed content published for this gate.'
-    if (discovered.value.length) unlockStep.value = 1
+    const found = await discoverSealedContent(unlockGateId.value, { includeOthers: includeOthers.value, config: cfg })
+    if (!op.isCurrent()) return
+    discovered.value = found
+    status.value = found.length ? `Found ${found.length} item(s).` : 'No sealed content published for this gate.'
+    if (found.length) unlockStep.value = 1
   } catch (e) {
-    errorMsg.value = e instanceof Error ? e.message : String(e)
+    if (op.isCurrent()) errorMsg.value = e instanceof Error ? e.message : String(e)
   } finally {
-    busy.value = false
+    if (op.isCurrent()) busy.value = false
   }
 }
 
 async function performUnlock(item: SealedContentPointer): Promise<void> {
   errorMsg.value = null
-  if (!account.value) {
+  const owner = account.value?.address
+  if (!owner) {
     errorMsg.value = 'Connect your wallet to decrypt.'
     return
   }
@@ -429,24 +534,28 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
     errorMsg.value = 'Enter your pass NFT id.'
     return
   }
+  const op = opScope.begin()
+  const cfg = activeConfig.value
   busy.value = true
   try {
     status.value = 'Fetching ciphertext from Walrus…'
-    const ciphertext = await readBlob(item.blobId)
+    const ciphertext = await readBlob(item.blobId, cfg)
+    if (!op.isCurrent()) return
     status.value = 'Requesting decryption keys — approve the signature in your wallet…'
-    const plaintext = await (await getSealController()).decrypt(
+    const plaintext = await (await getSealController(cfg)).decrypt(
       'nft-gate',
       { gateId: item.gateId, nftId: unlockNftId.value, soulbound: unlockSoulbound.value },
       item.sealId,
       ciphertext,
-      { address: account.value.address, signPersonalMessage },
+      { address: owner, signPersonalMessage },
     )
+    if (!op.isCurrent()) return
     triggerDownload(new Blob([plaintext.slice().buffer as ArrayBuffer]), safeFileName(item.label, 'decrypted'))
     status.value = 'Decrypted — download started.'
   } catch (e) {
-    errorMsg.value = e instanceof Error ? e.message : String(e)
+    if (op.isCurrent()) errorMsg.value = e instanceof Error ? e.message : String(e)
   } finally {
-    busy.value = false
+    if (op.isCurrent()) busy.value = false
   }
 }
 
@@ -475,6 +584,10 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
         </li>
         <li>Once someone has decrypted an item, losing their pass does not take that access back.</li>
         <li>Labels and the gate an item is sealed to are public; only the content is encrypted.</li>
+        <li>
+          The ciphertext is stored on Walrus for {{ activeConfig.walrusEpochs }} epochs. After that it is gone unless
+          you extend the <code>Blob</code> object sent to your account.
+        </li>
       </ul>
     </details>
 
@@ -562,11 +675,43 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
       <template v-else-if="encStep === 2">
         <div v-if="!manifest" class="confirm-summary">
           <p class="muted">Policy: <strong>{{ encProvider?.describe().label }}</strong></p>
+          <p v-for="row in confirmParams" :key="row.label" class="muted confirm-param">
+            {{ row.label }}: <strong>{{ row.value }}</strong>
+          </p>
+          <p v-if="gateOperator?.state === 'loading'" class="muted">Gate operator: reading from the chain…</p>
+          <p v-else-if="gateOperator?.state === 'ok'" class="muted confirm-param">
+            Gate operator (receives its payments, and may publish pointers for it): <strong>{{ gateOperator.text }}</strong>
+          </p>
+          <p v-else-if="gateOperator?.state === 'error'" class="notice notice--warn">
+            This gate could not be read as an access gate of this network: {{ gateOperator.text }}
+          </p>
           <p class="muted">File: <strong>{{ encFile?.name ?? '—' }}</strong></p>
           <p v-if="encLabel" class="muted">Label: <strong>{{ encLabel }}</strong></p>
+          <p class="muted">
+            Stored on Walrus for <strong>{{ activeConfig.walrusEpochs }} epochs</strong> from the current one. After
+            that the content cannot be recovered, even though the key servers still work, unless you extend the
+            <code>Blob</code> object that is sent to your account.
+          </p>
         </div>
 
-        <button type="button" v-if="!manifest" class="primary" :disabled="busy || disabled" @click="performEncrypt">
+        <div v-if="!manifest && needsLinkConfirm" class="notice notice--warn">
+          <p>
+            This access gate was preselected by a link you followed, not chosen by you. Anyone who holds a pass for
+            it will be able to decrypt this file. Check the gate id and its operator above.
+          </p>
+          <label class="field checkbox">
+            <input v-model="linkedGateConfirmed" type="checkbox" />
+            <span>I want to seal this file to the gate from the link</span>
+          </label>
+        </div>
+
+        <button
+          type="button"
+          v-if="!manifest"
+          class="primary"
+          :disabled="busy || disabled || (needsLinkConfirm && !linkedGateConfirmed)"
+          @click="performEncrypt"
+        >
           {{ busy ? 'Working…' : 'Encrypt & store' }}
         </button>
 
@@ -576,6 +721,14 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
             <pre class="manifest">{{ JSON.stringify(manifest, null, 2) }}</pre>
           </figure>
           <button type="button" class="link" @click="downloadManifest">Download manifest</button>
+
+          <p v-if="stored" class="muted enc-lifetime">
+            <template v-if="stored.endEpoch !== undefined">Stored on Walrus through epoch <strong>{{ stored.endEpoch }}</strong> ({{ stored.epochs }} epochs requested).</template>
+            <template v-else>Stored on Walrus for {{ stored.epochs }} epochs (the publisher did not report the end epoch).</template>
+            After that the content is gone, although the key servers and the manifest still work. To keep it longer,
+            extend your <code>Blob</code> object<template v-if="stored.blobObjectId"> <code>{{ stored.blobObjectId }}</code></template> before then in
+            the <a href="https://sui-walrus.meddleware.co.uk/" rel="noopener">Walrus asset manager</a> (My blobs).
+          </p>
 
           <section v-if="manifest.policyType === 'nft-gate'" class="enc-publish">
             <p class="muted">
@@ -785,7 +938,7 @@ textarea { min-height: 6rem; resize: vertical; font-family: ui-monospace, monosp
 
 button.primary {
   background: var(--accent, #c0503f);
-  color: #fff;
+  color: var(--accent-contrast, #fff);
   border: 0;
   border-radius: 8px;
   padding: 0.55rem 1.1rem;
@@ -834,6 +987,8 @@ pre.manifest {
 .seal-tabs { margin: 1rem 0; }
 .enc-result { margin: 1rem 0 0; }
 .enc-publish { margin-top: 0.75rem; }
+.enc-lifetime { margin-top: 0.75rem; }
+.enc-lifetime a { color: var(--accent, #c0503f); }
 .discovered { margin: 0.5rem 0; }
 .discovered__title { margin: 0; font-size: 1rem; }
 .discovered__blob { word-break: break-all; }

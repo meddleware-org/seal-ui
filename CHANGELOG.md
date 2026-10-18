@@ -3,6 +3,26 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.38] - 2026-10-18
+
+### Added
+
+- The Confirm step lists every parameter the content is sealed to (the gate id or the unlock time in local time and UTC) and the gate operator read from the chain; a gate preselected by a `?gate=` link needs an explicit confirmation before **Encrypt & store** is enabled
+- The ciphertext's storage lifetime is shown: epochs on the Confirm step and in the trust panel, the publisher's end epoch and `Blob` object id on the result, with the way to extend it
+
+### Changed
+
+- Dependencies: seal-client ^0.0.20, walrus-client ^0.0.28, access-gate-client ^0.0.9, design-tokens ^0.1.10; image base static-server 0.1.8
+- `VITE_WALRUS_EPOCHS` must be an integer in 1..53 (anything else disables sealing with the reason)
+- The npm release workflow runs the full CI workflow (including the unit tests) before publishing
+- The two public testnet key-server build values are passed from repository variables, not secrets; `.env*` (except `.env.example`) is git-ignored
+
+### Fixed
+
+- Primary buttons draw their label in `--accent-contrast` (white on the light dark-theme accent was 2.4-3.0:1)
+- An encrypt, re-seal, decrypt, publish or discovery still running when the network or account changes is bound to the state it started in and dropped on completion, so it no longer labels a manifest with the new network, stores on the new network's publisher or sends the `Blob` object to another account
+- Caller-keyed configuration lookups use `Object.hasOwn`; an unjustified `as never` cast is removed
+
 ## [0.0.37] - 2026-10-09
 
 ### Changed

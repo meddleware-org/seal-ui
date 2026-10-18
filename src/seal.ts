@@ -26,19 +26,22 @@ export function registryFor(cfg: SealConfig): PolicyRegistry {
 export const registry = computed(() => registryFor(activeConfig.value))
 
 /**
- * The SealController for the active network, built on first use.
+ * The SealController for `cfg` (default: the active network), built on first use. Call it
+ * synchronously at the start of an operation so the controller (and its Sui client) belong to the
+ * network the operation started on.
  *
- * @throws {Error} when sealing is not configured on the active network (the reason is the message).
+ * @throws {Error} when sealing is not configured on the network (the reason is the message).
  */
-export async function getSealController(): Promise<SealController> {
-  const cfg = activeConfig.value
+export async function getSealController(cfg: SealConfig = activeConfig.value): Promise<SealController> {
   if (cfg.problem || !cfg.seal) throw new Error(cfg.problem ?? `Sealed Storage is not available on ${cfg.network}.`)
   let c = controllers.get(cfg.network)
   if (!c) {
+    // Read before the await: the client follows the selected network, which can change meanwhile.
+    const suiClient = getSuiClient()
     const { SealController } = await import('@meddleware/seal-client/controller')
     c = new SealController(
       {
-        suiClient: getSuiClient(),
+        suiClient,
         originalId: cfg.seal.originalId,
         publishedAt: cfg.seal.publishedAt,
         policyConfigId: cfg.seal.policyConfigId,
@@ -79,12 +82,13 @@ export async function resealCiphertext(
 ): Promise<Resealed | null> {
   const cfg = activeConfig.value
   if (cfg.problem || !cfg.seal) throw new Error(cfg.problem ?? `Sealed Storage is not available on ${cfg.network}.`)
+  const suiClient = getSuiClient() // before any await: it follows the selected network
   const { SealController, describeCiphertext, sealedUnderServers } = await import('@meddleware/seal-client/controller')
   const info = describeCiphertext(ciphertext)
   if (sealedUnderServers(info, cfg.servers, cfg.threshold)) return null
   const original = new SealController(
     {
-      suiClient: getSuiClient(),
+      suiClient,
       originalId: cfg.seal.originalId,
       publishedAt: cfg.seal.publishedAt,
       policyConfigId: cfg.seal.policyConfigId,
@@ -95,7 +99,11 @@ export async function resealCiphertext(
   )
   const plaintext = await original.decrypt(policyType, decryptParams, id, ciphertext, opts)
   original.clearSession()
-  return (await getSealController()).encrypt(policyType, encryptParams, plaintext)
+  // The network can be switched while the wallet prompt is open; never re-seal onto another network's servers.
+  if (activeConfig.value.network !== cfg.network) {
+    throw new Error(`The network changed during the re-seal; nothing was sealed or stored on ${cfg.network}.`)
+  }
+  return (await getSealController(cfg)).encrypt(policyType, encryptParams, plaintext)
 }
 
 /**
