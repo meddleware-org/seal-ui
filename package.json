@@ -1,6 +1,6 @@
 {
   "name": "@meddleware/seal-ui",
-  "version": "0.0.38",
+  "version": "0.0.39",
   "homepage": "https://docs.meddleware.co.uk/blockchain/sui/sealed-storage/",
   "description": "Standalone Vue 3 SPA for Sealed Storage — client-side Seal encryption + access-gated, decentralised Walrus storage on Sui.",
   "author": "MeddleWare <dev@meddleware.co.uk>",
@@ -50,7 +50,7 @@
     "@meddleware/design-tokens": "^0.1.10",
     "@meddleware/seal-client": "^0.0.20",
     "@meddleware/ui": "^0.1.31",
-    "@meddleware/walrus-client": "^0.0.28",
+    "@meddleware/walrus-client": "^0.0.29",
     "@mysten/sui": "^2.33.2",
     "@mysten/wallet-standard": "^0.21.0",
     "vue": "^3.5.43"

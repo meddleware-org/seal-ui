@@ -3,6 +3,12 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.39] - 2026-10-19
+
+### Changed
+
+- `@meddleware/walrus-client` ^0.0.29 (relay tip ceiling re-derived from the workspace cost model, D57); dependency updates and the Node 26 baseline merged since 0.0.38
+
 ## [0.0.38] - 2026-10-18
 
 ### Added
