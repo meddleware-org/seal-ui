@@ -1,6 +1,6 @@
 # ── build stage ───────────────────────────────────────────────────────────────
 # Standalone build — the Docker context is this repo root. @meddleware/* dependencies resolve
-# from npm, so @meddleware/seal-client must be published before this image is built.
+# from npm, so @meddleware/sealed-storage-client must be published before this image is built.
 #
 # VITE_* build args (baked into the static bundle at build time):
 #   VITE_NETWORK                          — "testnet" | "mainnet" (default testnet)
@@ -73,7 +73,7 @@ ENV CONTENT_SECURITY_POLICY="${CSP}"
 COPY --from=build /app/dist /app/public
 # The lockfile lets SBOM scanners see the npm packages the bundle was built from (the bundle itself carries no
 # package metadata). It sits outside the served directory; THIRD_PARTY_LICENSES is served with the site.
-COPY --from=build /app/package-lock.json /usr/share/doc/seal-ui/package-lock.json
+COPY --from=build /app/package-lock.json /usr/share/doc/sealed-storage-ui/package-lock.json
 
 ENV SERVE_DIR=/app/public \
     SPA_FALLBACK=true \

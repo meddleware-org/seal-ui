@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { computed } from 'vue'
 
-// Discovery delegates to seal-client's listSealedContent (tested there); this checks the wrapper
+// Discovery delegates to sealed-storage-client's listSealedContent (tested there); this checks the wrapper
 // passes the active deployment, the gate, the cap and the optional indexer.
 const { listSealedContent, gateOperators } = vi.hoisted(() => ({ listSealedContent: vi.fn(), gateOperators: vi.fn(async () => ['0xop']) }))
 
 async function load(cfg: Record<string, unknown>, indexer = '') {
   vi.resetModules()
-  vi.doMock('@meddleware/seal-client', () => ({ listSealedContent, gateOperators }))
+  vi.doMock('@meddleware/sealed-storage-client', () => ({ listSealedContent, gateOperators }))
   vi.doMock('../src/wallet.js', () => ({ getSuiClient: () => ({ client: true }) }))
   vi.doMock('../src/config.js', () => ({ activeConfig: computed(() => cfg), INDEXER_URL: indexer }))
   return import('../src/sealed-content.js')

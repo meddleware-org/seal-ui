@@ -1,7 +1,7 @@
-// Discover on-chain SealedContent pointers for a gate with seal-client's `listSealedContent`
+// Discover on-chain SealedContent pointers for a gate with sealed-storage-client's `listSealedContent`
 // (exact event type at the deployment's original id; BCS-decoded). Reads the read-indexer when
 // VITE_INDEXER_URL is set — display data only, falling back to the full node.
-import { gateOperators, listSealedContent, type SealedContentPointer } from '@meddleware/seal-client'
+import { gateOperators, listSealedContent, type SealedContentPointer } from '@meddleware/sealed-storage-client'
 import { getSuiClient } from './wallet.js'
 import { activeConfig, INDEXER_URL, type SealConfig } from './config.js'
 

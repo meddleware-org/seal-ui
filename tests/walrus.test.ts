@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { computed } from 'vue'
 
 // The wrapper applies the active network's endpoints and the app's limits to
-// @meddleware/walrus-client/http (whose own behaviour is tested there).
+// @meddleware/walrus-storage-client/http (whose own behaviour is tested there).
 async function load(cfg: { network?: string; walrusPublisher?: string; walrusAggregator?: string; walrusEpochs?: number }) {
   vi.resetModules()
   vi.doMock('../src/config.js', () => ({

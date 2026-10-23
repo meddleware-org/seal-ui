@@ -5,8 +5,8 @@
 //   - the key-server committee, threshold and Walrus endpoints are operator settings baked in as
 //     VITE_*_{NET} build vars, with Mysten defaults where they exist.
 import { computed } from 'vue'
-import type { KeyServerConfig } from '@meddleware/seal-client'
-import { SEAL_POLICIES_DEPLOYMENTS, type SealPoliciesDeployment } from '@meddleware/seal-client/deployments'
+import type { KeyServerConfig } from '@meddleware/sealed-storage-client'
+import { SEAL_POLICIES_DEPLOYMENTS, type SealPoliciesDeployment } from '@meddleware/sealed-storage-client/deployments'
 import { ACCESS_GATE_DEPLOYMENTS, type AccessGateDeployment } from '@meddleware/access-gate-client/deployments'
 import { useNetwork } from '@meddleware/wallet-adapter'
 
@@ -136,7 +136,7 @@ export function sealConfig(net: string, envSource: EnvSource = env): SealConfig 
   const envAggs = csv(netEnv('VITE_SEAL_AGGREGATOR_URLS'))
   const ids = envIds.length ? envIds : (defaults?.ids ?? [])
   const aggs = envAggs.length ? envAggs : (defaults?.aggs ?? [])
-  // Never an API key: a key in a VITE_* var ships in the public bundle (seal-ui audit I5).
+  // Never an API key: a key in a VITE_* var ships in the public bundle (sealed-storage-ui audit I5).
   const servers: KeyServerConfig[] = ids.map((objectId, i) => ({ objectId, weight: 1, aggregatorUrl: aggs[i] }))
   const rawThreshold = netEnv('VITE_SEAL_THRESHOLD')
   const threshold = rawThreshold ? Number(rawThreshold) : (defaults?.threshold ?? 1)

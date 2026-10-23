@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // Standalone shell for the Sealed Storage SPA: app header + footer wrapping the core tool view.
-// The core UI lives in SealView.vue (also exported for inline embedding in the dashboard).
+// The core UI lives in SealedStorageView.vue (also exported for inline embedding in the dashboard).
 import { AppHeader, AppFooter, ColorModeControl, useColorMode } from '@meddleware/ui'
 import { network } from './config.js'
-import SealView from './components/SealView.vue'
+import SealedStorageView from './components/SealedStorageView.vue'
 
 const { mode, set } = useColorMode('dark')
 const DOCS_URL = import.meta.env.VITE_DOCS_URL || 'https://docs.meddleware.co.uk/blockchain/sui/sealed-storage/'
@@ -23,7 +23,7 @@ const DEV_URL  = import.meta.env.VITE_DEV_URL  || 'https://dev.meddleware.co.uk/
     </AppHeader>
 
     <main class="app__content">
-      <SealView />
+      <SealedStorageView />
     </main>
 
     <AppFooter :docs-url="DOCS_URL" :dev-url="DEV_URL" />
@@ -38,7 +38,7 @@ const DEV_URL  = import.meta.env.VITE_DEV_URL  || 'https://dev.meddleware.co.uk/
 }
 
 /* Centre the tool at the shared tool-content width when running standalone. The dashboard
-   supplies its own width container, so this lives in the shell, not SealView. */
+   supplies its own width container, so this lives in the shell, not SealedStorageView. */
 .app__content {
   flex: 1;
   width: 100%;

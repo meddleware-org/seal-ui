@@ -6,7 +6,7 @@ import { resolve } from 'node:path'
 // A hard-coded #fff is 2.4-3.0:1 on the dark theme's light accent stops. The browser-level check of
 // every theme and season is design-tokens' own `check:contrast`, which measures this exact pairing
 // (--accent-contrast on --accent); this test pins that the app uses the role and that the role exists.
-const view = readFileSync(resolve(process.cwd(), 'src/components/SealView.vue'), 'utf8')
+const view = readFileSync(resolve(process.cwd(), 'src/components/SealedStorageView.vue'), 'utf8')
 const tokens = readFileSync(resolve(process.cwd(), 'node_modules/@meddleware/design-tokens/src/tokens.css'), 'utf8')
 
 function rule(css: string, selector: string): string {

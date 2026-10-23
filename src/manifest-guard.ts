@@ -1,4 +1,4 @@
-import { parseSealedManifest, type PolicyRegistry, type SealedManifest } from '@meddleware/seal-client'
+import { parseSealedManifest, type PolicyRegistry, type SealedManifest } from '@meddleware/sealed-storage-client'
 
 /**
  * Result of validating a pasted/loaded manifest: either the parsed manifest, or a human-readable

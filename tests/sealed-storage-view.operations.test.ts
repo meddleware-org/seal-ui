@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { computed, ref, nextTick } from 'vue'
 import { shallowMount, flushPromises } from '@vue/test-utils'
 
-// SealView with its wiring mocked: network and account are refs the test switches mid-operation,
+// SealedStorageView with its wiring mocked: network and account are refs the test switches mid-operation,
 // and every slow dependency is a promise the test settles by hand. Covers audit F11 (a result that
 // arrives after a switch is dropped), F12 (the lifetime is shown) and F13 (the Confirm step shows
 // what the content is sealed to; a gate from a link needs an explicit OK).
@@ -76,8 +76,8 @@ async function mountView(setup: Setup = { network: 'testnet', address: '0xowner'
   vi.doMock('../src/walrus.js', () => ({ storeBlob, readBlob }))
   vi.doMock('../src/sealed-content.js', () => ({ discoverSealedContent, gateOperatorsFor }))
   if (setup.search) window.history.replaceState({}, '', setup.search)
-  const { default: SealView } = await import('../src/components/SealView.vue')
-  const wrapper = shallowMount(SealView, { global: { renderStubDefaultSlot: true } })
+  const { default: SealedStorageView } = await import('../src/components/SealedStorageView.vue')
+  const wrapper = shallowMount(SealedStorageView, { global: { renderStubDefaultSlot: true } })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the script-setup state, for driving the view
   const vm = wrapper.vm as any
   return { wrapper, vm, network, address, encrypt, storeBlob, readBlob, gateOperatorsFor, discoverSealedContent }
@@ -222,7 +222,7 @@ describe('F12: the storage lifetime is shown', () => {
     const text = t.wrapper.text()
     expect(text).toContain('through epoch 17')
     expect(text).toContain('0xblobobj')
-    expect(t.wrapper.find('.enc-lifetime a').attributes('href')).toBe('https://sui-walrus.meddleware.co.uk/')
+    expect(t.wrapper.find('.enc-lifetime a').attributes('href')).toBe('https://sui-walrus-storage.meddleware.co.uk/')
   })
 
   it('says so when the publisher did not report the end epoch', async () => {

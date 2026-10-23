@@ -1,4 +1,4 @@
-// Thin seal-ui shim over the shared @meddleware/wallet-adapter singleton.
+// Thin sealed-storage-ui shim over the shared @meddleware/wallet-adapter singleton.
 //
 // RPC URL is resolved from the runtime useNetwork() singleton so network switching
 // in the dashboard propagates immediately to all tool views. Because the adapter is a
@@ -31,7 +31,7 @@ export async function signAndExecute(tx: Transaction): Promise<{ digest: string 
 }
 
 /**
- * Wallet composable bound to seal-ui's network config. Delegates to the shared adapter singleton;
+ * Wallet composable bound to sealed-storage-ui's network config. Delegates to the shared adapter singleton;
  * Seal needs `sui:signPersonalMessage` (SessionKey) and `sui:signTransaction` (publish pointer),
  * so both are requested for discovery.
  */

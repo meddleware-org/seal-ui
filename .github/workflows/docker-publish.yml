@@ -5,7 +5,7 @@ on:
       - "v*"
 
 env:
-  IMAGE: seal-ui
+  IMAGE: sealed-storage-ui
 
 permissions:
   contents: read

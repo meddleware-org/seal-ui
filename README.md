@@ -1,4 +1,4 @@
-# @meddleware/seal-ui
+# @meddleware/sealed-storage-ui
 
 Sealed Storage — a standalone Vue 3 SPA for client-side [Seal](https://seal-docs.wal.app/) encryption
 with access-gated, decentralised [Walrus](https://walrus.xyz) storage on Sui.
@@ -9,19 +9,19 @@ on-chain policy allows (e.g. they hold a valid gate pass, or the unlock time has
 
 ## How it works
 
-1. **Encrypt** in the browser via `@meddleware/seal-client` (threshold Seal). No key material ever
+1. **Encrypt** in the browser via `@meddleware/sealed-storage-client` (threshold Seal). No key material ever
    touches a server.
 2. **Store** the opaque ciphertext on Walrus over HTTP; keep the returned blob id in the manifest.
 3. **Decrypt** by signing one wallet message (mints a short-lived Seal SessionKey); a threshold
    committee of independent key servers releases key shares only if the on-chain `seal_approve`
    passes.
 
-The policies live in the [`seal_policies`](https://github.com/meddleware-org/seal-policies-sui) Move
-package; the client seam is [`@meddleware/seal-client`](https://github.com/meddleware-org/seal-client).
+The policies live in the [`seal_policies`](https://github.com/meddleware-org/sealed-storage-sui) Move
+package; the client seam is [`@meddleware/sealed-storage-client`](https://github.com/meddleware-org/sealed-storage-client).
 
 ## Configure (build-time `VITE_*`)
 
-The `seal_policies` and `access_gate` ids come from the published `deployments` (seal-client and
+The `seal_policies` and `access_gate` ids come from the published `deployments` (sealed-storage-client and
 access-gate-client) for the active network; they are not configuration.
 
 | Var | Meaning |
@@ -39,9 +39,9 @@ access-gate-client) for the active network; they are not configuration.
 ## Develop
 
 ```sh
-# @meddleware/seal-client must be linked or published:
-( cd ../seal-client && npm link )
-npm install && npm link @meddleware/seal-client
+# @meddleware/sealed-storage-client must be linked or published:
+( cd ../sealed-storage-client && npm link )
+npm install && npm link @meddleware/sealed-storage-client
 npm run dev
 ```
 
@@ -49,7 +49,7 @@ npm run dev
 
 ```sh
 npm run build           # vue-tsc + vite → dist/
-docker build -t seal-ui .
+docker build -t sealed-storage-ui .
 ```
 
 Key servers (workspace ADR-0002): testnet uses Mysten's committee and two Open-mode servers; mainnet

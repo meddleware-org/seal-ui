@@ -1,11 +1,11 @@
-// Wires the shared @meddleware/seal-client into this app: a policy registry (drives the picker)
+// Wires the shared @meddleware/sealed-storage-client into this app: a policy registry (drives the picker)
 // and a SealController (encrypt/decrypt over the configured committee), each per network.
 //
 // SealController is loaded lazily (dynamic import) so @mysten/seal and @noble/curves are kept
 // out of the initial bundle — they're only needed when the user triggers encrypt/decrypt.
 import { computed } from 'vue'
-import { createDefaultRegistry, type PolicyRegistry } from '@meddleware/seal-client'
-import type { SealController } from '@meddleware/seal-client/controller'
+import { createDefaultRegistry, type PolicyRegistry } from '@meddleware/sealed-storage-client'
+import type { SealController } from '@meddleware/sealed-storage-client/controller'
 import { getSuiClient } from './wallet.js'
 import { activeConfig, aggregatorUrlFor, type SealConfig } from './config.js'
 
@@ -38,7 +38,7 @@ export async function getSealController(cfg: SealConfig = activeConfig.value): P
   if (!c) {
     // Read before the await: the client follows the selected network, which can change meanwhile.
     const suiClient = getSuiClient()
-    const { SealController } = await import('@meddleware/seal-client/controller')
+    const { SealController } = await import('@meddleware/sealed-storage-client/controller')
     c = new SealController(
       {
         suiClient,
@@ -83,7 +83,7 @@ export async function resealCiphertext(
   const cfg = activeConfig.value
   if (cfg.problem || !cfg.seal) throw new Error(cfg.problem ?? `Sealed Storage is not available on ${cfg.network}.`)
   const suiClient = getSuiClient() // before any await: it follows the selected network
-  const { SealController, describeCiphertext, sealedUnderServers } = await import('@meddleware/seal-client/controller')
+  const { SealController, describeCiphertext, sealedUnderServers } = await import('@meddleware/sealed-storage-client/controller')
   const info = describeCiphertext(ciphertext)
   if (sealedUnderServers(info, cfg.servers, cfg.threshold)) return null
   const original = new SealController(

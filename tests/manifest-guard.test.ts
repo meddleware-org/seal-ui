@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createDefaultRegistry } from '@meddleware/seal-client'
+import { createDefaultRegistry } from '@meddleware/sealed-storage-client'
 import { checkManifestForNetwork } from '../src/manifest-guard.js'
 
 const valid = {

@@ -1,5 +1,5 @@
 // What the Confirm step shows before sealing: every encrypt parameter, in a form the user can check.
-import type { FieldSpec } from '@meddleware/seal-client'
+import type { FieldSpec } from '@meddleware/sealed-storage-client'
 
 /** One line of the Confirm summary. */
 export interface ConfirmRow {

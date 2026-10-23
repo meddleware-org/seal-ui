@@ -2,13 +2,13 @@
 
 ## Scope
 
-This policy covers security issues in the `@meddleware/seal-ui` application/library source
-(`src/**`) — the encrypt/decrypt UI, the `SealView` library export, config/gating wiring, and the
+This policy covers security issues in the `@meddleware/sealed-storage-ui` application/library source
+(`src/**`) — the encrypt/decrypt UI, the `SealedStorageView` library export, config/gating wiring, and the
 Walrus HTTP storage helper.
 
 It does not cover:
 
-- `@meddleware/seal-client`, the Seal key-server committee, or `@mysten/seal`/`@mysten/sui` (see
+- `@meddleware/sealed-storage-client`, the Seal key-server committee, or `@mysten/seal`/`@mysten/sui` (see
   their own channels) — the committee holds all decryption keys and adjudicates `seal_approve`
 - The Walrus HTTP publisher/aggregator endpoints or the wallet extension
 
@@ -17,7 +17,7 @@ It does not cover:
 These invariants are load-bearing. A report demonstrating that any is violated is in scope and
 treated as high severity:
 
-1. **The app never holds decryption keys.** Key material stays inside `@meddleware/seal-client` /
+1. **The app never holds decryption keys.** Key material stays inside `@meddleware/sealed-storage-client` /
    the committee; decrypted plaintext is download-only and never logged or persisted.
 2. **Sealing fails closed per network.** Sealing is disabled (with the reason shown) unless the
    active network has a recorded `seal_policies` deployment, a configured committee and a valid

@@ -5,7 +5,7 @@ import { computed, ref } from 'vue'
 // then must not encrypt the decrypted plaintext for the other network's key servers.
 const { switchNetwork, encrypted } = vi.hoisted(() => ({ switchNetwork: { fn: () => {} }, encrypted: { count: 0 } }))
 
-vi.mock('@meddleware/seal-client/controller', () => ({
+vi.mock('@meddleware/sealed-storage-client/controller', () => ({
   SealController: class {
     async decrypt() {
       switchNetwork.fn()

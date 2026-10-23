@@ -7,7 +7,7 @@ const { instances, info, sameServers } = vi.hoisted(() => ({
   info: { value: null as unknown },
   sameServers: { value: false },
 }))
-vi.mock('@meddleware/seal-client/controller', () => ({
+vi.mock('@meddleware/sealed-storage-client/controller', () => ({
   SealController: class {
     rec: { cfg: Record<string, unknown>; calls: unknown[][]; cleared: boolean }
     constructor(cfg: Record<string, unknown>) {

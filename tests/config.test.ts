@@ -24,7 +24,7 @@ describe('thresholdError', () => {
 describe('sealConfig', () => {
   it('takes the package ids from the deployments and the testnet committee defaults', async () => {
     const { sealConfig } = await import('../src/config.js')
-    const { sealPoliciesDeployment } = await import('@meddleware/seal-client/deployments')
+    const { sealPoliciesDeployment } = await import('@meddleware/sealed-storage-client/deployments')
     const { accessGateDeployment } = await import('@meddleware/access-gate-client/deployments')
     const c = sealConfig('testnet', {})
     expect(c.seal).toEqual(sealPoliciesDeployment('testnet'))

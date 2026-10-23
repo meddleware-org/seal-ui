@@ -1,9 +1,9 @@
-// Ciphertext storage via the Walrus HTTP publisher/aggregator (@meddleware/walrus-client/http). The
+// Ciphertext storage via the Walrus HTTP publisher/aggregator (@meddleware/walrus-storage-client/http). The
 // blob is opaque (already Seal-encrypted), so no wallet, wasm or @mysten/walrus is involved. This
 // module only applies a network's endpoints and the app's limits. Callers that await across a
 // network switch pass the configuration they started with, so a late call never reaches the new
 // network's publisher.
-import { readBlob as readViaAggregator, storeBlobViaPublisher } from '@meddleware/walrus-client/http'
+import { readBlob as readViaAggregator, storeBlobViaPublisher } from '@meddleware/walrus-storage-client/http'
 import { activeConfig, WALRUS_MAX_UPLOAD_BYTES, type SealConfig } from './config.js'
 
 /** A stored ciphertext: its blob id and, when the publisher reports it, the last epoch it is stored for. */

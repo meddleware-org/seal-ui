@@ -2,10 +2,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { computed, ref } from 'vue'
 import { shallowMount } from '@vue/test-utils'
 
-// Mount SealView with its config + wiring modules mocked, so we can drive the active network's
+// Mount SealedStorageView with its config + wiring modules mocked, so we can drive the active network's
 // configuration and assert the gating (the "not available / not configured" notice) without a
 // wallet, key-server committee, or Walrus endpoint. shallowMount stubs child components
-// (WalletGuard, AppTabNav) but renders SealView's own template, where the gate lives.
+// (WalletGuard, AppTabNav) but renders SealedStorageView's own template, where the gate lives.
 async function mountWith(problem: string | null, network = 'testnet', custody: 'independent' | 'operator' = 'independent') {
   vi.resetModules()
   vi.doMock('../src/config.js', () => ({
@@ -27,13 +27,13 @@ async function mountWith(problem: string | null, network = 'testnet', custody: '
   }))
   vi.doMock('../src/walrus.js', () => ({ storeBlob: vi.fn(), readBlob: vi.fn() }))
   vi.doMock('../src/sealed-content.js', () => ({ discoverSealedContent: vi.fn(), gateOperatorsFor: vi.fn() }))
-  const { default: SealView } = await import('../src/components/SealView.vue')
-  return shallowMount(SealView)
+  const { default: SealedStorageView } = await import('../src/components/SealedStorageView.vue')
+  return shallowMount(SealedStorageView)
 }
 
 afterEach(() => vi.resetModules())
 
-describe('SealView network gating', () => {
+describe('SealedStorageView network gating', () => {
   // The notice sits outside WalletGuard and is bound to `activeConfig.problem`, so its presence is
   // the wallet-independent gating signal. (The encrypt controls live behind the connect prompt.)
   it('shows why sealing is unavailable on the active network', async () => {

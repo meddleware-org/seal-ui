@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 
 // Capture the config the app hands to SealController (the real one needs a live committee).
 const { configs } = vi.hoisted(() => ({ configs: [] as Record<string, unknown>[] }))
-vi.mock('@meddleware/seal-client/controller', () => ({
+vi.mock('@meddleware/sealed-storage-client/controller', () => ({
   SealController: class {
     constructor(cfg: Record<string, unknown>) {
       configs.push(cfg)

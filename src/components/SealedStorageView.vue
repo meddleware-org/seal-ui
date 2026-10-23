@@ -1,10 +1,10 @@
 <script setup lang="ts">
 // Core Sealed Storage tool UI (Encrypt / Decrypt / Unlock), free of any app shell.
-// Rendered standalone by seal-ui's App.vue and inline by the dashboard. Wallet state comes from
+// Rendered standalone by sealed-storage-ui's App.vue and inline by the dashboard. Wallet state comes from
 // the shared @meddleware/wallet-adapter singleton (via ./wallet.js): connecting here or in any
 // other inline tool view (or the dashboard header) reflects everywhere.
 //
-// Styles are scoped to this component so the dashboard can import it without pulling seal-ui's
+// Styles are scoped to this component so the dashboard can import it without pulling sealed-storage-ui's
 // global stylesheet (which restyles body / #app / bare inputs). The standalone app keeps those
 // globals via main.ts → styles.css.
 import { computed, onMounted, ref, watch } from 'vue'
@@ -15,7 +15,7 @@ import {
   type SealPolicyProvider,
   type SealedContentPointer,
   type FieldSuggestion,
-} from '@meddleware/seal-client'
+} from '@meddleware/sealed-storage-client'
 import { checkManifestForNetwork } from '../manifest-guard.js'
 import { confirmRows } from '../confirm.js'
 import { createOperationScope } from '../operation-scope.js'
@@ -727,7 +727,7 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
             <template v-else>Stored on Walrus for {{ stored.epochs }} epochs (the publisher did not report the end epoch).</template>
             After that the content is gone, although the key servers and the manifest still work. To keep it longer,
             extend your <code>Blob</code> object<template v-if="stored.blobObjectId"> <code>{{ stored.blobObjectId }}</code></template> before then in
-            the <a href="https://sui-walrus.meddleware.co.uk/" rel="noopener">Walrus asset manager</a> (My blobs).
+            the <a href="https://sui-walrus-storage.meddleware.co.uk/" rel="noopener">Walrus asset manager</a> (My blobs).
           </p>
 
           <section v-if="manifest.policyType === 'nft-gate'" class="enc-publish">
