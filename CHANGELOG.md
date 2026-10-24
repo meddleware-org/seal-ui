@@ -3,6 +3,14 @@
 All notable changes to `@meddleware/seal-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.0.42] - 2026-10-24
+
+### Changed
+
+- Text names the Move package `sealed_storage` (ADR-0004).
+- Runtime endpoint config: the indexer can be overridden by a same-origin `/runtime-config.json` (`@meddleware/ui` 0.1.34; workspace ADR-0005).
+- Ships its own `robots.txt` and `llms.txt`.
+
 ## [0.0.41] - 2026-10-24
 
 ### Changed

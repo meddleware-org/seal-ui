@@ -579,7 +579,7 @@ async function performUnlock(item: SealedContentPointer): Promise<void> {
           could decrypt, and if fewer are online nobody can.
         </li>
         <li>
-          Who may decrypt is decided by the <code>seal_policies</code> package. Until its publisher makes it
+          Who may decrypt is decided by the <code>sealed_storage</code> package. Until its publisher makes it
           immutable, an upgrade could change access to content already sealed.
         </li>
         <li>Once someone has decrypted an item, losing their pass does not take that access back.</li>

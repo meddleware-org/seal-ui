@@ -1,0 +1,15 @@
+# Sealed Storage
+
+> Encrypt files in the browser with Seal (threshold encryption with on-chain access policies: time lock or holding an Access Gate pass) and store them on Walrus. Nothing we operate can decrypt your data.
+
+Address: https://sui-sealed-storage.meddleware.co.uk
+
+## Documentation
+
+- [User guide](https://docs.meddleware.co.uk/blockchain/sui/sealed-storage/)
+- [Policies](https://docs.meddleware.co.uk/blockchain/sui/sealed-storage/policies)
+- [Developer integration](https://dev.meddleware.co.uk/sui/sealed-storage/integration)
+
+## SDK
+
+- [@meddleware/sealed-storage-client (npm)](https://www.npmjs.com/package/@meddleware/sealed-storage-client)

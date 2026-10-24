@@ -20,7 +20,7 @@ treated as high severity:
 1. **The app never holds decryption keys.** Key material stays inside `@meddleware/sealed-storage-client` /
    the committee; decrypted plaintext is download-only and never logged or persisted.
 2. **Sealing fails closed per network.** Sealing is disabled (with the reason shown) unless the
-   active network has a recorded `seal_policies` deployment, a configured committee and a valid
+   active network has a recorded `sealed_storage` deployment, a configured committee and a valid
    threshold; a partially configured network never attempts it. Package ids come from the published
    `deployments`, never from build configuration.
 3. **No private key material is a `VITE_*` value.** Key-server object ids and aggregator URLs are

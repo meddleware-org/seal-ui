@@ -4,7 +4,7 @@
 #
 # VITE_* build args (baked into the static bundle at build time):
 #   VITE_NETWORK                          — "testnet" | "mainnet" (default testnet)
-#   (the seal_policies and access_gate ids come from the published `deployments`, not build args)
+#   (the sealed_storage and access_gate ids come from the published `deployments`, not build args)
 #   VITE_SEAL_SERVER_OBJECT_IDS_{NET}     — CSV of key-server object ids (committee)
 #   VITE_SEAL_AGGREGATOR_URLS_{NET}       — CSV of aggregator URLs, index-aligned with the ids
 #   VITE_SEAL_THRESHOLD_{NET}             — t over the configured servers (default 2 on testnet and mainnet)

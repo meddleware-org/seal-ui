@@ -1,7 +1,7 @@
 // Configuration. The network is wallet-adapter's shared runtime selector (the standalone build
 // selects VITE_NETWORK in main.ts; embedded, the host's selector rules). Everything network-specific
 // is resolved for that network:
-//   - package ids (seal_policies, access_gate) come from the published `deployments` — never env;
+//   - package ids (sealed_storage, access_gate) come from the published `deployments` — never env;
 //   - the key-server committee, threshold and Walrus endpoints are operator settings baked in as
 //     VITE_*_{NET} build vars, with Mysten defaults where they exist.
 import { computed } from 'vue'
@@ -9,9 +9,11 @@ import type { KeyServerConfig } from '@meddleware/sealed-storage-client'
 import { SEAL_POLICIES_DEPLOYMENTS, type SealPoliciesDeployment } from '@meddleware/sealed-storage-client/deployments'
 import { ACCESS_GATE_DEPLOYMENTS, type AccessGateDeployment } from '@meddleware/access-gate-client/deployments'
 import { useNetwork } from '@meddleware/wallet-adapter'
+import { withRuntimeEnv } from '@meddleware/ui'
 
 type EnvSource = Record<string, string | undefined>
-const env: EnvSource = (import.meta as unknown as { env?: EnvSource }).env ?? {}
+// Build-time values, with the runtime endpoint overrides (/runtime-config.json, ADR-0005) on top.
+const env: EnvSource = withRuntimeEnv((import.meta as unknown as { env?: EnvSource }).env ?? {})
 
 /** The active network (read-only ref). */
 export const network = useNetwork().network
@@ -109,7 +111,7 @@ export type KeyCustody = 'independent' | 'operator'
 /** Everything sealing needs on one network. */
 export interface SealConfig {
   network: string
-  /** The `seal_policies` deployment, or null where none is recorded. */
+  /** The `sealed_storage` deployment, or null where none is recorded. */
   seal: SealPoliciesDeployment | null
   /** The `access_gate` original id ('' where none is recorded; gate suggestions are then off). */
   accessGateOriginalId: string
@@ -151,7 +153,7 @@ export function sealConfig(net: string, envSource: EnvSource = env): SealConfig 
   const walrus = own(WALRUS_DEFAULTS, net)
   const lifetime = parseWalrusEpochs(envSource.VITE_WALRUS_EPOCHS)
   const problem = custodyError ?? lifetime.error ?? (!seal
-    ? `Sealed Storage is not available on ${net}: no seal_policies deployment is recorded for it.`
+    ? `Sealed Storage is not available on ${net}: no sealed_storage deployment is recorded for it.`
     : servers.length === 0
       ? `Sealed Storage is not configured on ${net}: set VITE_SEAL_SERVER_OBJECT_IDS_${NET} (and VITE_SEAL_AGGREGATOR_URLS_${NET} for a committee).`
       : thresholdError(threshold, servers))

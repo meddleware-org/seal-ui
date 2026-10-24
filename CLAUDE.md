@@ -15,7 +15,7 @@ and later decrypt it if the on-chain policy allows.
   bindings on native elements must go through `safeHref`, `safeIcon`, `suiExplorerUrl` or
   `walruscanBlobUrl`. Do not disable it — move the logic into the domain client instead.
 - **Thin app, on-chain truth.** No policy logic here — all of it is in `@meddleware/sealed-storage-client`
-  (the registry + `SealController`) and the `seal_policies` Move package. This app only wires config,
+  (the registry + `SealController`) and the `sealed_storage` Move package. This app only wires config,
   wallet, and storage.
 - **Registry-driven UI.** The policy picker and its form fields come from
   `registry.list()` + `provider.describe()`. Adding a policy type needs **no change here** — register
@@ -65,7 +65,7 @@ remain a thin shell.
 The network is wallet-adapter's shared runtime selector (the standalone `main.ts` selects
 `VITE_NETWORK`). Sealing is enabled while `activeConfig.problem` is null, which needs:
 
-- a `seal_policies` deployment recorded for the network (in sealed-storage-client's `deployments`);
+- a `sealed_storage` deployment recorded for the network (in sealed-storage-client's `deployments`);
 - key servers (defaults on testnet and mainnet, or `VITE_SEAL_SERVER_OBJECT_IDS_{NET}`);
 - a valid threshold.
 
@@ -108,7 +108,7 @@ build. For local dev: `cd ../sealed-storage-client && npm link`, then `npm link 
 
 ## What NOT to do
 
-- Do not add policy-specific logic here — it belongs in `@meddleware/sealed-storage-client` + `seal_policies`.
+- Do not add policy-specific logic here — it belongs in `@meddleware/sealed-storage-client` + `sealed_storage`.
 - Do not hold or derive decryption keys; the committee does that.
 - Do not hardcode or env-configure package ids; they come from `deployments`. Operator settings
   are read per network via `sealConfig` in `src/config.ts`.
@@ -125,10 +125,10 @@ build. For local dev: `cd ../sealed-storage-client && npm link`, then `npm link 
 - **Embed `SealedStorageView`** (`import { SealedStorageView } from '@meddleware/sealed-storage-ui'`) with the shared
   `@meddleware/wallet-adapter`; the registry-driven policy picker means new policies need no change
   here. The SDK-level story (controller, providers, manifest) lives in `@meddleware/sealed-storage-client`; the
-  on-chain policy contracts in `seal_policies` (`sealed-storage-sui`).
+  on-chain policy contracts in `sealed_storage` (`sealed-storage-sui`).
 
 ### White-label operator path (to write later)
 
-- Deploying against an operator's **own `seal_policies` package + key-server committee**: the
+- Deploying against an operator's **own `sealed_storage` package + key-server committee**: the
   `VITE_SEAL_*` build args (committee ids, aggregator URLs, threshold) and the published
   `deployments` the package ids come from; branding via design-tokens + `AppHeader`.

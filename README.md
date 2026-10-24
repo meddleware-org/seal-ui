@@ -16,12 +16,12 @@ on-chain policy allows (e.g. they hold a valid gate pass, or the unlock time has
    committee of independent key servers releases key shares only if the on-chain `seal_approve`
    passes.
 
-The policies live in the [`seal_policies`](https://github.com/meddleware-org/sealed-storage-sui) Move
+The policies live in the [`sealed_storage`](https://github.com/meddleware-org/sealed-storage-sui) Move
 package; the client seam is [`@meddleware/sealed-storage-client`](https://github.com/meddleware-org/sealed-storage-client).
 
 ## Configure (build-time `VITE_*`)
 
-The `seal_policies` and `access_gate` ids come from the published `deployments` (sealed-storage-client and
+The `sealed_storage` and `access_gate` ids come from the published `deployments` (sealed-storage-client and
 access-gate-client) for the active network; they are not configuration.
 
 | Var | Meaning |
@@ -55,7 +55,7 @@ docker build -t sealed-storage-ui .
 Key servers (workspace ADR-0002): testnet uses Mysten's committee and two Open-mode servers; mainnet
 uses three keyless Open-mode servers run by independent operators (Overclock, NodeInfra, H2O Nodes)
 at threshold 2. No server needs an API key, and none is ever put in the bundle. Mainnet sealing stays
-disabled with an in-app notice until the mainnet `seal_policies` package is published.
+disabled with an in-app notice until the mainnet `sealed_storage` package is published.
 
 **Re-seal.** Content can only be decrypted by the key servers it was sealed to. The Decrypt tab's
 re-seal action decrypts it with those servers and seals it again for the current ones, so content can

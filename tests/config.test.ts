@@ -36,7 +36,7 @@ describe('sealConfig', () => {
     expect(c.problem).toBeNull()
   })
 
-  it('reports a network without a seal_policies deployment', async () => {
+  it('reports a network without a sealed_storage deployment', async () => {
     const { sealConfig } = await import('../src/config.js')
     const c = sealConfig('mainnet', {})
     expect(c.seal).toBeNull()

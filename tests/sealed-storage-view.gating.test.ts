@@ -37,7 +37,7 @@ describe('SealedStorageView network gating', () => {
   // The notice sits outside WalletGuard and is bound to `activeConfig.problem`, so its presence is
   // the wallet-independent gating signal. (The encrypt controls live behind the connect prompt.)
   it('shows why sealing is unavailable on the active network', async () => {
-    const w = await mountWith('Sealed Storage is not available on mainnet: no seal_policies deployment is recorded for it.', 'mainnet')
+    const w = await mountWith('Sealed Storage is not available on mainnet: no sealed_storage deployment is recorded for it.', 'mainnet')
     expect(w.find('.notice--warn').exists()).toBe(true)
     expect(w.text()).toContain('not available on mainnet')
   })
